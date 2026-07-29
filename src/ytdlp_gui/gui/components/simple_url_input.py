@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 URL Input Component
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 

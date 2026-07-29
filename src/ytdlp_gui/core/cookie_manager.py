@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Cookie Manager
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
@@ -320,7 +320,7 @@ class CookieManager:
         """Get human-readable cookie status for display to user"""
         network_settings = self.settings_manager.get_network_settings()
         if not network_settings.get('cookies_enabled', True):
-            return "Куки отключены в настройках"
+            return "Cookies disabled in settings"
 
         # Try each browser
         browsers_to_try = [network_settings.get('cookies_browser', 'chrome')]
@@ -330,14 +330,14 @@ class CookieManager:
 
         for browser in browsers_to_try:
             if self._is_browser_available(browser):
-                return f"Куки из браузера: {browser.title()}"
+                return f"Cookies from browser: {browser.title()}"
 
         # Check cookie file
         cookie_files = self._get_cookie_file_paths()
         if cookie_files:
-            return f"Куки из файла: {cookie_files[0].name}"
+            return f"Cookies from file: {cookie_files[0].name}"
 
-        return "Куки не найдены. Публичные видео скачаются, для приватных — положите cookies.txt рядом с программой"
+        return "No cookies found. Public videos will download, for private ones place cookies.txt next to the program"
 
     def get_available_browsers(self) -> List[str]:
         """Get list of available browsers on the current system"""

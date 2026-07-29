@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Download Manager
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
@@ -23,27 +23,27 @@ from .cookie_manager import CookieManager, cookie_opts_to_cli
 from . import ytdlp_wrapper
 
 ERROR_TRANSLATIONS = [
-    (r'unable to download video data.*HTTP Error 403', 'YouTube заблокировал скачивание. Куки в браузере устарели — экспортируйте новые через расширение Get cookies.txt в файл cookies.txt и положите рядом с программой'),
-    (r'HTTP Error 40[13]', 'Доступ запрещён (HTTP 40x). Попробуйте добавить cookies.txt рядом с программой'),
-    (r'HTTP Error 404', 'Видео не найдено (HTTP 404). Возможно, оно удалено или ссылка неверна'),
-    (r'HTTP Error 429', 'Слишком много запросов. Подождите несколько минут и повторите'),
-    (r'HTTP Error 5\d{2}', 'Ошибка сервера (HTTP 5xx). Повторите попытку позже'),
-    (r'Sign in to confirm', 'YouTube запросил подтверждение. Экспортируйте cookies браузера в cookies.txt и положите рядом с программой'),
-    (r'confirm your age', 'Возрастное ограничение. Добавьте cookies.txt из аккаунта с подтверждённым возрастом'),
-    (r'Video unavailable', 'Видео недоступно. Возможно, оно удалено или доступно только по ссылке'),
-    (r'This video is private', 'Это приватное видео. Добавьте cookies.txt из аккаунта, у которого есть доступ'),
-    (r'ffprobe.*not found', 'FFmpeg не найден — проверьте подключение к интернету и перезапустите программу'),
-    (r'ffmpeg.*not found', 'FFmpeg не найден — проверьте подключение к интернету и перезапустите программу'),
-    (r'No video formats found', 'Не удалось получить форматы видео. Возможно, видео недоступно в вашем регионе'),
-    (r'Unable to extract', 'Не удалось обработать страницу. Возможно, сайт изменился или нужны куки'),
-    (r'requested format not available', 'Запрошенное качество недоступно. Попробуйте другое'),
-    (r'ConnectionError.*reset', 'Соединение разорвано. Проверьте интернет и VPN'),
-    (r'Timeout', 'Таймаут соединения. Проверьте интернет или попробуйте позже'),
-    (r'Certificate verify failed', 'Ошибка SSL-сертификата. Проверьте дату и время на компьютере'),
+    (r'unable to download video data.*HTTP Error 403', 'YouTube blocked the download. Browser cookies are outdated — export new ones via Get cookies.txt extension and place cookies.txt next to the program'),
+    (r'HTTP Error 40[13]', 'Access denied (HTTP 40x). Try adding cookies.txt next to the program'),
+    (r'HTTP Error 404', 'Video not found (HTTP 404). It may have been deleted or the link is wrong'),
+    (r'HTTP Error 429', 'Too many requests. Wait a few minutes and try again'),
+    (r'HTTP Error 5\d{2}', 'Server error (HTTP 5xx). Try again later'),
+    (r'Sign in to confirm', 'YouTube requires confirmation. Export browser cookies to cookies.txt and place next to the program'),
+    (r'confirm your age', 'Age restriction. Add cookies.txt from an account with confirmed age'),
+    (r'Video unavailable', 'Video unavailable. It may have been deleted or is accessible by link only'),
+    (r'This video is private', 'This is a private video. Add cookies.txt from an account that has access'),
+    (r'ffprobe.*not found', 'FFmpeg not found — check your internet connection and restart the program'),
+    (r'ffmpeg.*not found', 'FFmpeg not found — check your internet connection and restart the program'),
+    (r'No video formats found', 'Could not get video formats. The video may be unavailable in your region'),
+    (r'Unable to extract', 'Could not process the page. The site may have changed or cookies are needed'),
+    (r'requested format not available', 'Requested quality is not available. Try another one'),
+    (r'ConnectionError.*reset', 'Connection reset. Check your internet and VPN'),
+    (r'Timeout', 'Connection timeout. Check your internet or try again later'),
+    (r'Certificate verify failed', 'SSL certificate error. Check the date and time on your computer'),
 ]
 
 def translate_error(error: Exception) -> str:
-    """Convert common yt-dlp errors to human-readable Russian messages"""
+    """Convert common yt-dlp errors to human-readable messages"""
     error_str = str(error)
     for pattern, message in ERROR_TRANSLATIONS:
         import re
@@ -535,7 +535,7 @@ class DownloadManager:
             if not download_item:
                 return
 
-            # Логируем все статусы для отладки
+            # Log all statuses for debugging
             self.logger.debug(f"Progress hook: status={d.get('status')}, data={d}")
 
             if d['status'] == 'downloading':
@@ -559,20 +559,20 @@ class DownloadManager:
                 # Download finished, check if merging is needed
                 download_item.progress = 100
 
-                # Проверяем, требуется ли слияние форматов
+                # Check if format merging is required
                 format_info = getattr(download_item, 'format_info', {})
                 needs_merging = False
 
-                # Проверяем по селектору формата
+                # Check by format selector
                 if hasattr(self, '_current_format_selector'):
                     needs_merging = '+' in self._current_format_selector
 
-                # Проверяем по качеству (высокие качества обычно требуют слияния)
+                # Check by quality (high qualities usually need merging)
                 quality = format_info.get('quality', '')
                 if quality in ['720p', '1080p', '1440p', '2160p', '4K']:
                     needs_merging = True
 
-                # Проверяем по имени файла
+                # Check by filename
                 filename = d.get('filename', '')
                 if filename and any(ext in filename for ext in ['.f', '.temp', '.part']):
                     needs_merging = True
@@ -581,7 +581,7 @@ class DownloadManager:
                     download_item.speed = 'Merging formats...'
                     download_item.eta = 'Processing'
                     self.logger.info(f"Format merging detected for {download_item.title}")
-                    print(f"   🔄 Merging formats for: {download_item.title}")
+                    print(f"   Merging formats for: {download_item.title}")
                 else:
                     download_item.speed = 'Finishing...'
                     download_item.eta = 'Almost done'
@@ -590,7 +590,7 @@ class DownloadManager:
 
             elif d['status'] == 'processing':
                 # Postprocessing (merging formats)
-                download_item.speed = '🔄 Merging formats...'
+                download_item.speed = ' Merging formats...'
                 download_item.eta = 'Processing'
                 download_item.progress = 100
                 self.logger.info(f"Postprocessing started for {download_item.title}")
@@ -630,16 +630,16 @@ class DownloadManager:
             if not download_item:
                 return
 
-            # Логируем все события постобработки
+            # Log all postprocessor events
             self.logger.info(f"Postprocessor hook: status={d.get('status')}, postprocessor={d.get('postprocessor')}, data={d}")
-            print(f"🔄 Postprocessor: {d.get('status')} - {d.get('postprocessor', 'Unknown')}")
+            print(f"Postprocessor: {d.get('status')} - {d.get('postprocessor', 'Unknown')}")
 
             if d['status'] == 'started':
                 # Postprocessing started
-                download_item.speed = '🔄 Merging formats...'
+                download_item.speed = ' Merging formats...'
                 download_item.eta = 'Processing'
                 self.logger.info(f"Postprocessing started for {download_item.title}")
-                print(f"   🔄 Started merging for: {download_item.title}")
+                print(f"    Started merging for: {download_item.title}")
                 self._notify_progress_change(download_id)
 
             elif d['status'] == 'processing':

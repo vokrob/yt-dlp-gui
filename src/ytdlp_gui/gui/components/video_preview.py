@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Video Preview Component
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
@@ -132,7 +132,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
         # Loading spinner - clean and modern
         self.loading_label = ctk.CTkLabel(
             loading_content,
-            text="⠋",
+            text="|",
             font=ctk.CTkFont(size=32, weight="bold"),
             text_color=("gray60", "gray40")
         )
@@ -197,18 +197,16 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _animate_loading(self):
         """Animate loading spinner with smooth effects"""
         if not self.loading_complete:
-            # Smooth loading animation with Unicode spinner
+            # Smooth loading animation
             loading_states = [
-                "⠋",
-                "⠙",
-                "⠹",
-                "⠸",
-                "⠼",
-                "⠴",
-                "⠦",
-                "⠧",
-                "⠇",
-                "⠏"
+                "|",
+                "/",
+                "-",
+                "\\",
+                "|",
+                "/",
+                "-",
+                "\\"
             ]
 
             # Subtle color cycling for visual appeal
@@ -430,40 +428,40 @@ class VideoPreviewFrame(ctk.CTkFrame):
 
         messages = {
             "no video formats found": (
-                "YouTube изменил свои API. Форматы видео не найдены.\n\n"
-                "Подождите выхода новой версии yt-dlp (обычно 1-2 дня)."
+                "No video formats found.\n\n"
+                "Wait for a new yt-dlp release (usually 1-2 days)."
             ),
             "failed to extract any player response": (
-                "YouTube изменил свои API — функция извлечения недоступна.\n\n"
-                "Приложение уже загрузило самую свежую сборку yt-dlp, но YouTube\n"
-                "требует нового обновления. Обычно yt-dlp выпускает патч за 1-2 дня."
+                "YouTube changed its API — extraction is unavailable.\n\n"
+                "The app already downloaded the latest yt-dlp build, but YouTube\n"
+                "requires another update. yt-dlp usually releases a patch in 1-2 days."
             ),
             "video unavailable": (
-                "Видео недоступно. Оно может быть:\n"
-                "- удалено автором или YouTube\n"
-                "- приватным\n"
-                "- заблокировано в вашем регионе"
+                "Video unavailable. It may be:\n"
+                "- deleted by the author or YouTube\n"
+                "- private\n"
+                "- blocked in your region"
             ),
             "incomplete youtube id": (
-                "Некорректная ссылка на видео. Проверьте правильность URL."
+                "Invalid video URL. Please check the link."
             ),
             "sign in to confirm": (
-                "Для просмотра этого видео требуется вход в аккаунт.\n\n"
-                "Войдите в YouTube в браузере и включите куки в настройках."
+                "This video requires sign-in.\n\n"
+                "Log into YouTube in your browser and enable cookies in settings."
             ),
             "this video is only available for registered users": (
-                "Видео доступно только зарегистрированным пользователям."
+                "Video is only available for registered users."
             ),
             "age": (
-                "Видео имеет возрастное ограничение.\n\n"
-                "Войдите в аккаунт YouTube в браузере и включите куки."
+                "Age-restricted video.\n\n"
+                "Log into YouTube in your browser and enable cookies."
             ),
             "http error 404": (
-                "Видео не найдено (404). Возможно, оно было удалено."
+                "Video not found (404). It may have been deleted."
             ),
             "http error 403": (
-                "Доступ к видео запрещён (403).\n"
-                "Проверьте VPN или попробуйте позже."
+                "Access denied (403).\n"
+                "Check your VPN or try again later."
             ),
         }
 

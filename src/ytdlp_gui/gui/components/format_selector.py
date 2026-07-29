@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Format Selector Component
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
@@ -111,28 +111,28 @@ class FormatSelectorFrame(ctk.CTkFrame):
         if is_audio:
             format_info['format_id'] = 'bestaudio/best'
         else:
-            # БЫСТРЫЕ СЕЛЕКТОРЫ - ПРИОРИТЕТ ГОТОВЫМ MP4
+            # Fast selectors - prefer ready MP4
             if quality == "Best":
-                # Приоритет готовым MP4, потом FFmpeg объединение
+                # Prefer ready MP4, then FFmpeg merge
                 format_info['format_id'] = 'best[ext=mp4]/bestvideo+bestaudio/best'
             else:
-                # Извлекаем высоту из строки качества (например, "1080p" -> 1080)
+                # Extract height from quality string (e.g. "1080p" -> 1080)
                 height = self.get_quality_height(quality)
                 if height:
-                    # ИСПРАВЛЕНИЕ ДЛЯ НИЗКИХ КАЧЕСТВ: 480p и ниже - правильные селекторы
+                    # Fix for low qualities: 480p and below - correct selectors
                     if height <= 480:
-                        # Для низких качеств сначала пробуем готовые файлы, потом объединение с H.264
-                        # Приоритет H.264 кодеку для избежания серого фильтра
+                        # For low qualities try ready files first, then merge with H.264
+                        # Prefer H.264 codec to avoid grey filter
                         format_info['format_id'] = f'best[height<={height}][ext=mp4][vcodec!=none][acodec!=none]/bestvideo[height<={height}][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]'
-                        print(f"   📱 {height}p → Приоритет H.264 кодеку (избегаем серый фильтр)")
+                        print(f"   {height}p -> H.264 codec priority (avoid grey filter)")
                     else:
-                        # Для высоких качеств - приоритет готовым MP4, потом FFmpeg объединение
+                        # For high qualities - prefer ready MP4, then FFmpeg merge
                         format_info['format_id'] = f'best[height<={height}][ext=mp4]/bestvideo[height<={height}]+bestaudio/best'
                 else:
-                    # Fallback на лучшее качество
+                    # Fallback to best quality
                     format_info['format_id'] = 'best[ext=mp4]/bestvideo+bestaudio/best'
 
-        # ДИАГНОСТИКА РЕЗУЛЬТАТА
+        # Result diagnostics
         print(f"FORMAT_SELECTOR RESULT:")
         print(f"   Generated format_id = {format_info['format_id']}")
         print(f"   Final format_info = {format_info}")

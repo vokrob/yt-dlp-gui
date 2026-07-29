@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Download Options Component
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
@@ -238,7 +238,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             'quality': self.quality_var.get() if self.format_var.get() == "Video" else None
         }
         
-        # ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЕ СЕЛЕКТОРЫ ИЗ FORMAT_SELECTOR
+        # Use correct selectors from FORMAT_SELECTOR
         if format_info['audio_only']:
             format_info['format_id'] = 'bestaudio/best'
             self.logger.info(f"Audio format selected: {format_info['format_id']}")
@@ -246,20 +246,20 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             quality = format_info['quality']
             self.logger.info(f"Video quality selected: {quality}")
 
-            # СЕЛЕКТОРЫ НА ОСНОВЕ bestvideo+bestaudio (как ваша команда)
+            # Selectors based on bestvideo+bestaudio
             if quality == "Best":
                 format_info['format_id'] = 'bestvideo+bestaudio/best'
             else:
-                # Извлекаем высоту из строки качества
+                # Extract height from quality string
                 import re
                 height_match = re.search(r'(\d+)p', quality) if quality else None
                 height = int(height_match.group(1)) if height_match else None
 
                 if height:
-                    # Селекторы на основе bestvideo+bestaudio с ограничением качества
+                    # Selectors based on bestvideo+bestaudio with quality limit
                     format_info['format_id'] = f'bestvideo[height<={height}]+bestaudio/bestvideo+bestaudio/best'
                 else:
-                    # Fallback на лучшее качество
+                    # Fallback to best quality
                     format_info['format_id'] = 'bestvideo+bestaudio/best'
 
             self.logger.info(f"Generated format_id: {format_info['format_id']}")

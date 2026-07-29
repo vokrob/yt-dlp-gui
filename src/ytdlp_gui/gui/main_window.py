@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Main GUI window
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 

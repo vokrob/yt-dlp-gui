@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Main Entry Point
-Author: vokrob (Данил Борков)
+Author: vokrob
 Date: 18.07.2025
 """
 
