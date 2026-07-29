@@ -7,23 +7,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            pyinstaller-os: Windows
-            archive-suffix: windows-amd64
-            exe-name: yt-dlp-gui.exe
-          - os: macos-latest
-            pyinstaller-os: Darwin
-            archive-suffix: macos-amd64
-            exe-name: yt-dlp-gui
-          - os: ubuntu-latest
-            pyinstaller-os: Linux
-            archive-suffix: linux-amd64
-            exe-name: yt-dlp-gui
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -51,8 +35,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yt-dlp-gui-${{ matrix.archive-suffix }}
-          path: dist/${{ matrix.exe-name }}
+          name: yt-dlp-gui-windows-amd64
+          path: dist/yt-dlp-gui.exe
 
   release:
     needs: build
@@ -68,13 +52,7 @@ jobs:
         shell: bash
         run: |
           mkdir release
-          for dir in yt-dlp-gui-*; do
-            if [ -f "$dir/yt-dlp-gui.exe" ]; then
-              (cd "$dir" && zip -9 "../release/$dir.zip" "yt-dlp-gui.exe")
-            elif [ -f "$dir/yt-dlp-gui" ]; then
-              (cd "$dir" && tar czf "../release/$dir.tar.gz" "yt-dlp-gui")
-            fi
-          done
+          zip -9 "release/yt-dlp-gui-windows-amd64.zip" yt-dlp-gui-windows-amd64/yt-dlp-gui.exe
           echo "=== Release files ==="
           ls -lh release/
 
