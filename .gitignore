@@ -162,3 +162,5 @@ Thumbs.db
 downloads/
 temp/
 cache/
+ffmpeg_cache/
+deno_cache/

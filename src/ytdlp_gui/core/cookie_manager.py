@@ -31,6 +31,25 @@ class CookieManager:
             'vk.com': ['edge', 'chrome', 'firefox'],
             'vkvideo.ru': ['edge', 'chrome', 'firefox'],
         }
+
+    def _get_cookie_file_paths(self) -> list:
+        """Find cookies.txt file locations to try"""
+        paths = []
+
+        # If running as frozen exe — check next to the exe first
+        import sys
+        if getattr(sys, 'frozen', False):
+            paths.append(Path(sys.executable).parent / 'cookies.txt')
+            paths.append(Path(sys._MEIPASS) / 'cookies.txt')
+
+        # Check app data directory
+        if hasattr(self.settings_manager, 'settings_dir'):
+            paths.append(self.settings_manager.settings_dir / 'cookies.txt')
+
+        # Check current directory
+        paths.append(Path.cwd() / 'cookies.txt')
+
+        return [p for p in paths if p.exists()]
         
     def get_cookie_options(self, url: str = None, browser: str = None) -> Dict[str, Any]:
         """
@@ -101,8 +120,18 @@ class CookieManager:
 
                 return cookie_options
 
-        # If no browser cookies available, log warning but don't fail
-        self.logger.warning("No browser cookies available, proceeding without cookies")
+        # Fallback: try cookies.txt file
+        cookie_files = self._get_cookie_file_paths()
+        if cookie_files:
+            cookie_path = cookie_files[0]
+            self.logger.info(f"Using cookies from file: {cookie_path}")
+            cookie_options = {'cookiefile': str(cookie_path)}
+            if url:
+                cookie_options.update(self._get_site_specific_options(url))
+            return cookie_options
+
+        # If no browser cookies or cookie file available, log warning but don't fail
+        self.logger.warning("No browser cookies or cookie file available, proceeding without cookies")
         return {}
     
     def _is_browser_available(self, browser: str) -> bool:
@@ -267,6 +296,29 @@ class CookieManager:
             })
 
         return options
+
+    def get_cookie_status_message(self, url: str = None) -> str:
+        """Get human-readable cookie status for display to user"""
+        network_settings = self.settings_manager.get_network_settings()
+        if not network_settings.get('cookies_enabled', True):
+            return "Куки отключены в настройках"
+
+        # Try each browser
+        browsers_to_try = [network_settings.get('cookies_browser', 'chrome')]
+        for browser in self.browser_priority:
+            if browser not in browsers_to_try:
+                browsers_to_try.append(browser)
+
+        for browser in browsers_to_try:
+            if self._is_browser_available(browser):
+                return f"Куки из браузера: {browser.title()}"
+
+        # Check cookie file
+        cookie_files = self._get_cookie_file_paths()
+        if cookie_files:
+            return f"Куки из файла: {cookie_files[0].name}"
+
+        return "Куки не найдены. Публичные видео скачаются, для приватных — положите cookies.txt рядом с программой"
 
     def get_available_browsers(self) -> List[str]:
         """Get list of available browsers on the current system"""

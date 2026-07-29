@@ -10,11 +10,16 @@ import logging
 from pathlib import Path
 
 def setup_paths():
-    """Setup module paths"""
+    """Setup module paths and bundled binaries"""
     if getattr(sys, 'frozen', False):
         app_path = Path(sys.executable).parent
+        meipass = Path(sys._MEIPASS)
+        os.environ['PATH'] = str(meipass) + os.pathsep + os.environ.get('PATH', '')
     else:
         app_path = Path(__file__).parent
+        for cachedir in [app_path / 'ffmpeg_cache', app_path / 'deno_cache']:
+            if cachedir.exists():
+                os.environ['PATH'] = str(cachedir) + os.pathsep + os.environ.get('PATH', '')
 
     src_path = app_path / "src"
     if src_path.exists():

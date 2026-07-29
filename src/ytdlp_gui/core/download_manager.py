@@ -21,6 +21,38 @@ import uuid
 
 from .cookie_manager import CookieManager
 
+ERROR_TRANSLATIONS = [
+    (r'unable to download video data.*HTTP Error 403', 'YouTube заблокировал скачивание. Куки в браузере устарели — экспортируйте новые через расширение Get cookies.txt в файл cookies.txt и положите рядом с программой'),
+    (r'HTTP Error 40[13]', 'Доступ запрещён (HTTP 40x). Попробуйте добавить cookies.txt рядом с программой'),
+    (r'HTTP Error 404', 'Видео не найдено (HTTP 404). Возможно, оно удалено или ссылка неверна'),
+    (r'HTTP Error 429', 'Слишком много запросов. Подождите несколько минут и повторите'),
+    (r'HTTP Error 5\d{2}', 'Ошибка сервера (HTTP 5xx). Повторите попытку позже'),
+    (r'Sign in to confirm', 'YouTube запросил подтверждение. Экспортируйте cookies браузера в cookies.txt и положите рядом с программой'),
+    (r'confirm your age', 'Возрастное ограничение. Добавьте cookies.txt из аккаунта с подтверждённым возрастом'),
+    (r'Video unavailable', 'Видео недоступно. Возможно, оно удалено или доступно только по ссылке'),
+    (r'This video is private', 'Это приватное видео. Добавьте cookies.txt из аккаунта, у которого есть доступ'),
+    (r'ffprobe.*not found', 'FFmpeg не найден — обратитесь к разработчику (ошибка сборки)'),
+    (r'ffmpeg.*not found', 'FFmpeg не найден — обратитесь к разработчику (ошибка сборки)'),
+    (r'No video formats found', 'Не удалось получить форматы видео. Возможно, видео недоступно в вашем регионе'),
+    (r'Unable to extract', 'Не удалось обработать страницу. Возможно, сайт изменился или нужны куки'),
+    (r'requested format not available', 'Запрошенное качество недоступно. Попробуйте другое'),
+    (r'ConnectionError.*reset', 'Соединение разорвано. Проверьте интернет и VPN'),
+    (r'Timeout', 'Таймаут соединения. Проверьте интернет или попробуйте позже'),
+    (r'Certificate verify failed', 'Ошибка SSL-сертификата. Проверьте дату и время на компьютере'),
+]
+
+def translate_error(error: Exception) -> str:
+    """Convert common yt-dlp errors to human-readable Russian messages"""
+    error_str = str(error)
+    for pattern, message in ERROR_TRANSLATIONS:
+        import re
+        if re.search(pattern, error_str, re.IGNORECASE):
+            return message
+    # Fallback: truncate raw error
+    if len(error_str) > 200:
+        return error_str[:200] + '...'
+    return error_str
+
 class DownloadStatus(Enum):
     PENDING = "pending"
     DOWNLOADING = "downloading"
@@ -381,7 +413,7 @@ class DownloadManager:
         except Exception as e:
             self.logger.error(f"Failed to start download: {e}")
             download_item.status = DownloadStatus.FAILED
-            download_item.error_message = str(e)
+            download_item.error_message = translate_error(e)
             self._notify_progress_change(download_item.id)
             
     def _download_worker(self, download_item: DownloadItem):
@@ -458,20 +490,20 @@ class DownloadManager:
                 error_msg = str(e).lower()
                 self.logger.warning(f"Download attempt with {browser or 'no cookies'} failed: {e}")
 
-                # If auth-related error, try next browser
-                if any(kw in error_msg for kw in ['sign in', 'confirm you', 'bot', 'cookie']):
+                # If auth or access error, try next browser
+                if any(kw in error_msg for kw in ['sign in', 'confirm you', 'bot', 'cookie', '403', 'forbidden']):
                     if browser is not None:
-                        self.logger.info(f"Auth issue with {browser}, trying next browser...")
+                        self.logger.info(f"Auth/access issue with {browser}, trying next browser...")
                         continue
 
-                # Non-auth error or all browsers exhausted
+                # Non-recoverable error or all browsers exhausted
                 break
 
         if not success:
             # All attempts failed
             self.logger.error(f"Download failed: {last_error}")
             download_item.status = DownloadStatus.FAILED
-            download_item.error_message = str(last_error)
+            download_item.error_message = translate_error(last_error)
 
             self.log_download_event("FAILED", download_item.url, str(last_error))
 

@@ -9,6 +9,8 @@ import sys
 import shutil
 import subprocess
 import platform
+import urllib.request
+import zipfile
 from pathlib import Path
 
 # Application information
@@ -18,8 +20,103 @@ APP_DESCRIPTION = "Modern GUI for yt-dlp - Video & Audio Downloader"
 
 # Build configuration
 BUILD_DIR = Path("build")
+FFMPEG_DIR = Path("ffmpeg_cache")
+DENO_DIR = Path("deno_cache")
 DIST_DIR = Path("dist")
 ASSETS_DIR = Path("assets")
+
+# FFmpeg download URLs
+FFMPEG_ZIP_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+FFMPEG_ZIP_NAME = "ffmpeg-release-essentials.zip"
+
+def download_ffmpeg():
+    """Download and extract ffmpeg binaries for bundling"""
+    if FFMPEG_DIR.exists():
+        print("   FFmpeg binaries already present, skipping download")
+        return True
+
+    print("Downloading FFmpeg...")
+    zip_path = BUILD_DIR / FFMPEG_ZIP_NAME
+
+    try:
+        if not zip_path.exists():
+            print(f"   Downloading from {FFMPEG_ZIP_URL}...")
+            urllib.request.urlretrieve(FFMPEG_ZIP_URL, zip_path)
+            print(f"   Downloaded {zip_path}")
+
+        print("   Extracting ffmpeg.exe and ffprobe.exe...")
+        FFMPEG_DIR.mkdir(parents=True, exist_ok=True)
+
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            for member in zf.namelist():
+                filename = Path(member).name
+                if filename in ('ffmpeg.exe', 'ffprobe.exe'):
+                    with zf.open(member) as src, open(FFMPEG_DIR / filename, 'wb') as dst:
+                        shutil.copyfileobj(src, dst)
+                    print(f"      Extracted {filename}")
+
+        # Verify
+        if not (FFMPEG_DIR / "ffmpeg.exe").exists():
+            print("   ERROR: ffmpeg.exe not found in archive")
+            return False
+
+        # Clean up zip
+        zip_path.unlink()
+
+        ffmpeg_size = (FFMPEG_DIR / "ffmpeg.exe").stat().st_size
+        print(f"   FFmpeg extracted ({ffmpeg_size // 1024 // 1024} MB)")
+        return True
+
+    except Exception as e:
+        print(f"   Failed to download/extract FFmpeg: {e}")
+        return False
+
+DENO_URLS = {
+    'windows': 'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip',
+    'darwin': 'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-apple-darwin.zip',
+    'linux': 'https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip',
+}
+
+def download_deno():
+    """Download deno binary for JS runtime support"""
+    if DENO_DIR.exists():
+        print("   Deno binary already present, skipping download")
+        return True
+
+    system = platform.system().lower()
+    if system not in DENO_URLS:
+        print(f"   No deno build available for {system}, skipping")
+        return True
+
+    print("Downloading Deno...")
+    DENO_DIR.mkdir(parents=True, exist_ok=True)
+    zip_path = BUILD_DIR / "deno.zip"
+
+    try:
+        if not zip_path.exists():
+            url = DENO_URLS[system]
+            print(f"   Downloading from {url}...")
+            urllib.request.urlretrieve(url, zip_path)
+            print(f"   Downloaded {zip_path}")
+
+        print("   Extracting deno...")
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            deno_names = [n for n in zf.namelist() if Path(n).name in ('deno', 'deno.exe')]
+            if not deno_names:
+                print("   ERROR: deno binary not found in archive")
+                return False
+            with zf.open(deno_names[0]) as src, open(DENO_DIR / Path(deno_names[0]).name, 'wb') as dst:
+                shutil.copyfileobj(src, dst)
+
+        zip_path.unlink()
+
+        deno_size = sum(f.stat().st_size for f in DENO_DIR.iterdir())
+        print(f"   Deno extracted ({deno_size // 1024 // 1024} MB)")
+        return True
+
+    except Exception as e:
+        print(f"   Failed to download/extract Deno: {e}")
+        return False
 
 def clean_build():
     """Clean previous build artifacts"""
@@ -87,6 +184,18 @@ def create_pyinstaller_spec():
         "psutil"
     ]
     
+    # Binary files to bundle (inside the exe)
+    binaries = []
+    if FFMPEG_DIR.exists():
+        for bin_file in FFMPEG_DIR.iterdir():
+            if bin_file.suffix == '.exe':
+                binaries.append((str(bin_file), '.'))
+    if DENO_DIR.exists():
+        for bin_file in DENO_DIR.iterdir():
+            name = bin_file.name
+            if name in ('deno', 'deno.exe'):
+                binaries.append((str(bin_file), '.'))
+
     # Data files to include
     datas = []
     if ASSETS_DIR.exists():
@@ -117,7 +226,7 @@ block_cipher = None
 a = Analysis(
     ['main.py'],
     pathex=['src'],
-    binaries=[],
+    binaries={binaries!r},
     datas={datas!r},
     hiddenimports={hidden_imports!r},
     hookspath=[],
@@ -278,6 +387,15 @@ def main():
     # Create directories
     BUILD_DIR.mkdir(exist_ok=True)
     DIST_DIR.mkdir(exist_ok=True)
+    
+    # Download FFmpeg for bundling (cached in ffmpeg_cache/)
+    if not download_ffmpeg():
+        print("ERROR: FFmpeg download failed, cannot continue")
+        sys.exit(1)
+
+    # Download Deno for JS runtime support (cached in deno_cache/)
+    if not download_deno():
+        print("WARNING: Deno download failed, JS extraction may be limited")
     
     # Create PyInstaller spec
     spec_file = create_pyinstaller_spec()
