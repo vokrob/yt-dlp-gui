@@ -24,12 +24,16 @@ GITHUB_REPO = "vokrob/yt-dlp-gui"
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
+CACHE_TTL = 6 * 3600  # 6 hours between update checks
+
+
 class UpdateChecker:
     """Check for updates and apply them"""
 
-    def __init__(self):
+    def __init__(self, settings_manager=None):
         self.logger = logging.getLogger(__name__)
         self._current_version = self._parse_version(__version__)
+        self._settings = settings_manager
 
     def _parse_version(self, version_str: str) -> Optional[Version]:
         try:
@@ -40,8 +44,40 @@ class UpdateChecker:
     def is_frozen(self) -> bool:
         return getattr(sys, 'frozen', False)
 
+    def _load_cache(self) -> Optional[Dict]:
+        """Load cached update info from settings"""
+        if not self._settings:
+            return None
+        try:
+            last_check = self._settings.get('last_update_check_time', 0.0)
+            elapsed = __import__('time').time() - last_check
+            if elapsed < CACHE_TTL:
+                cached = self._settings.get('latest_update_info', '')
+                if cached:
+                    return json.loads(cached)
+        except Exception as e:
+            self.logger.warning(f"Failed to load update cache: {e}")
+        return None
+
+    def _save_cache(self, info: dict):
+        """Save update info to settings cache"""
+        if not self._settings:
+            return
+        try:
+            import time
+            self._settings.set('last_update_check_time', time.time())
+            self._settings.set('latest_available_version', info.get('latest_version', ''))
+            self._settings.set('latest_update_info', json.dumps(info))
+        except Exception as e:
+            self.logger.warning(f"Failed to save update cache: {e}")
+
     def check(self) -> Optional[Dict]:
-        """Check GitHub for latest release. Returns None on error, or dict with update info."""
+        """Check GitHub for latest release. Uses cached result if fresh."""
+        cached = self._load_cache()
+        if cached is not None:
+            self.logger.info("Using cached update check result")
+            return cached
+
         try:
             resp = requests.get(
                 GITHUB_API,
@@ -70,11 +106,13 @@ class UpdateChecker:
                 asset_url = self._find_asset(data)
                 if not asset_url:
                     self.logger.warning("No matching asset found for this platform")
+                    self._save_cache(result)
                     return result
 
                 result["available"] = True
                 result["download_url"] = asset_url
 
+            self._save_cache(result)
             return result
 
         except requests.RequestException as e:

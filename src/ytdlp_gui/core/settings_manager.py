@@ -39,6 +39,9 @@ class SettingsManager:
         'cookies_enabled': True,
         'cookies_browser': 'chrome',  # Default browser for cookie extraction
         'cookies_fallback_browsers': ['chrome', 'firefox', 'edge', 'safari'],
+        'last_update_check_time': 0.0,  # Timestamp of last update check
+        'latest_available_version': '',  # Cached latest version from last check
+        'latest_update_info': '',  # Cached update info JSON string
     }
     
     def __init__(self):

@@ -49,7 +49,7 @@ class YTDLPGUIApp:
         self.startup_grace_period = 3.0
         self.startup_failed_ids = set()
 
-        self.update_checker = UpdateChecker()
+        self.update_checker = UpdateChecker(settings_manager=self.settings_manager)
         self._update_info = None
 
         # UI state
