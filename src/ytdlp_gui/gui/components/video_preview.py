@@ -14,12 +14,12 @@ from pathlib import Path
 import requests
 from PIL import Image
 import io
-import yt_dlp
 import re
 import json
 from typing import Dict, Optional, Callable
 
-from ytdlp_gui.core.cookie_manager import CookieManager
+from ytdlp_gui.core.cookie_manager import CookieManager, cookie_opts_to_cli
+from ytdlp_gui.core import ytdlp_wrapper
 
 class VideoPreviewFrame(ctk.CTkFrame):
     """Frame for displaying video preview with title and thumbnail"""
@@ -249,58 +249,32 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _fetch_video_info(self, url: str):
         """Fetch video information using yt-dlp (runs in separate thread)"""
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-                'noplaylist': True,
-                # SETTINGS FOR GETTING ORIGINAL VIDEO VERSION
-                'geo_bypass': False,  # Disable geo-bypass to preserve original audio track
-                'prefer_original_language': True,  # Prefer original language
-                # Force specific extractors
-                'force_generic_extractor': False,
-                # YouTube specific options
-                'youtube_include_dash_manifest': True,
-                'youtube_skip_dash_manifest': False,
-                # Network options
-                'socket_timeout': 30,
-                'retries': 3,
-                'fragment_retries': 3,
-                # User agent and headers WITHOUT language preferences
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'referer': 'https://www.youtube.com/',
-                'headers': {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'max-age=0',
-                },
-                # Additional bypass options
-                'no_check_certificate': True,
-                'prefer_insecure': False,
-                'call_home': False,
-            }
+            base_args = [
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                '--referer', 'https://www.youtube.com/',
+                '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                '--add-header', 'Accept-Encoding: gzip, deflate, br',
+                '--add-header', 'DNT: 1',
+                '--add-header', 'Connection: keep-alive',
+                '--add-header', 'Upgrade-Insecure-Requests: 1',
+                '--add-header', 'Sec-Fetch-Dest: document',
+                '--add-header', 'Sec-Fetch-Mode: navigate',
+                '--add-header', 'Sec-Fetch-Site: none',
+                '--add-header', 'Sec-Fetch-User: ?1',
+                '--add-header', 'Cache-Control: max-age=0',
+            ]
 
-            # Browser fallback chain: Chrome → Firefox → Edge → no cookies
             cookie_browsers = ['chrome', 'firefox', 'edge', None]
             info = None
             last_auth_error = None
 
             for browser in cookie_browsers:
-                browser_opts = ydl_opts.copy()
+                extra = list(base_args)
                 if self.cookie_manager:
                     cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
-                    browser_opts.update(cookie_opts)
-
+                    extra.extend(cookie_opts_to_cli(cookie_opts))
                 try:
-                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
-                        info = ydl.extract_info(url, download=False)
+                    info = ytdlp_wrapper.extract_info(url, extra_args=extra)
                     if info:
                         self.logger.info(f"Standard extraction succeeded with {browser or 'no cookies'}")
                         break
@@ -322,20 +296,13 @@ class VideoPreviewFrame(ctk.CTkFrame):
             if 'youtube video #' in info.get('title', '').lower():
                 self.logger.info("Got generic title, trying alternative extraction...")
                 try:
-                    # Try with different options
-                    alt_opts = ydl_opts.copy()
-                    alt_opts.update({
-                        'youtube_include_dash_manifest': False,
-                        'youtube_skip_dash_manifest': True,
-                        'extract_flat': True,
-                    })
+                    alt_args = list(base_args)
                     if self.cookie_manager:
-                        alt_opts.update(self.cookie_manager.get_cookie_options(url))
-
-                    with yt_dlp.YoutubeDL(alt_opts) as ydl:
-                        alt_info = ydl.extract_info(url, download=False)
-                        if alt_info and alt_info.get('title') and 'youtube video #' not in alt_info.get('title', '').lower():
-                            info = alt_info
+                        cookie_opts = self.cookie_manager.get_cookie_options(url)
+                        alt_args.extend(cookie_opts_to_cli(cookie_opts))
+                    alt_info = ytdlp_wrapper.extract_info(url, extra_args=alt_args)
+                    if alt_info and alt_info.get('title') and 'youtube video #' not in alt_info.get('title', '').lower():
+                        info = alt_info
                 except Exception as e:
                     self.logger.warning(f"Alternative extraction failed: {e}")
 
@@ -343,38 +310,27 @@ class VideoPreviewFrame(ctk.CTkFrame):
             if 'youtube video #' in info.get('title', '').lower():
                 self.logger.info("Still generic title, trying minimal extraction...")
                 try:
-                    minimal_opts = {
-                        'quiet': True,
-                        'no_warnings': True,
-                        'extract_flat': False,
-                        'noplaylist': True,
-                        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    }
-
-                    with yt_dlp.YoutubeDL(minimal_opts) as ydl:
-                        min_info = ydl.extract_info(url, download=False)
-                        if min_info and min_info.get('title') and 'youtube video #' not in min_info.get('title', '').lower():
-                            info = min_info
+                    min_info = ytdlp_wrapper.extract_info(url, extra_args=[
+                        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    ])
+                    if min_info and min_info.get('title') and 'youtube video #' not in min_info.get('title', '').lower():
+                        info = min_info
                 except Exception as e:
                     self.logger.warning(f"Minimal extraction failed: {e}")
 
             if info:
-                # Check if we got a proper title
                 title = info.get('title', 'Unknown Title')
                 if 'youtube video #' in title.lower():
                     self.logger.info("Got generic title from yt-dlp, trying HTML extraction...")
-                    # Try to extract title from HTML page
                     html_title = self._extract_title_from_html(url)
                     if html_title:
                         title = html_title
                     else:
-                        # Fallback: extract video ID and create a better title
                         video_id = None
                         if 'youtube.com/watch?v=' in url:
                             video_id = url.split('v=')[1].split('&')[0]
                         elif 'youtu.be/' in url:
                             video_id = url.split('youtu.be/')[1].split('?')[0]
-
                         if video_id:
                             title = f"YouTube Video ({video_id})"
 
@@ -389,14 +345,11 @@ class VideoPreviewFrame(ctk.CTkFrame):
                     'url': url
                 }
 
-                # Update UI on main thread
                 self.after(0, self._update_video_info)
 
-                # Load thumbnail
                 if self.video_info['thumbnail']:
                     self._load_thumbnail(self.video_info['thumbnail'])
                 else:
-                    # No thumbnail, show content anyway
                     self.after(0, self._finalize_loading)
             else:
                 self.after(0, lambda: self._show_error("Could not load video information"))

@@ -5,7 +5,6 @@ Author: vokrob (Данил Борков)
 Date: 18.07.2025
 """
 
-import yt_dlp
 import threading
 import queue
 import logging
@@ -13,13 +12,15 @@ import time
 import json
 import requests
 import re
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 import uuid
 
-from .cookie_manager import CookieManager
+from .cookie_manager import CookieManager, cookie_opts_to_cli
+from . import ytdlp_wrapper
 
 ERROR_TRANSLATIONS = [
     (r'unable to download video data.*HTTP Error 403', 'YouTube заблокировал скачивание. Куки в браузере устарели — экспортируйте новые через расширение Get cookies.txt в файл cookies.txt и положите рядом с программой'),
@@ -31,8 +32,8 @@ ERROR_TRANSLATIONS = [
     (r'confirm your age', 'Возрастное ограничение. Добавьте cookies.txt из аккаунта с подтверждённым возрастом'),
     (r'Video unavailable', 'Видео недоступно. Возможно, оно удалено или доступно только по ссылке'),
     (r'This video is private', 'Это приватное видео. Добавьте cookies.txt из аккаунта, у которого есть доступ'),
-    (r'ffprobe.*not found', 'FFmpeg не найден — обратитесь к разработчику (ошибка сборки)'),
-    (r'ffmpeg.*not found', 'FFmpeg не найден — обратитесь к разработчику (ошибка сборки)'),
+    (r'ffprobe.*not found', 'FFmpeg не найден — проверьте подключение к интернету и перезапустите программу'),
+    (r'ffmpeg.*not found', 'FFmpeg не найден — проверьте подключение к интернету и перезапустите программу'),
     (r'No video formats found', 'Не удалось получить форматы видео. Возможно, видео недоступно в вашем регионе'),
     (r'Unable to extract', 'Не удалось обработать страницу. Возможно, сайт изменился или нужны куки'),
     (r'requested format not available', 'Запрошенное качество недоступно. Попробуйте другое'),
@@ -308,59 +309,29 @@ class DownloadManager:
     def _get_video_info(self, download_item: DownloadItem):
         """Get video information without downloading"""
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-                'noplaylist': True,
-                # Video extraction settings for original content
-                'geo_bypass': False,  # Preserve regional settings
-                'prefer_original_language': True,  # Prefer original language
-                # HTTP headers for content localization
-                'http_headers': {
-                    'Accept-Language': 'ru-RU,ru;q=0.9',  # Russian language preference
-                },
-                'writeautomaticsub': False,  # Skip automatic subtitles
-                'writesubtitles': False,  # Skip subtitles
-                # YouTube specific options
-                'youtube_include_dash_manifest': True,
-                'youtube_skip_dash_manifest': False,
-                # Network options
-                'socket_timeout': 30,
-                'retries': 3,
-                'fragment_retries': 3,
-                # Stability settings
-                # Additional bypass options
-                'no_check_certificate': True,
-                'prefer_insecure': False,
-                'call_home': False,
-            }
+            base_args = [
+                '--add-header', 'Accept-Language: ru-RU,ru;q=0.9',
+            ]
 
-            # Try with multiple browsers for cookies, then fall back to no cookies
             info = None
             for browser in ['chrome', 'firefox', 'edge', None]:
-                browser_opts = ydl_opts.copy()
+                extra = list(base_args)
                 cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
                 if cookie_opts:
-                    browser_opts.update(cookie_opts)
+                    extra.extend(cookie_opts_to_cli(cookie_opts))
                 try:
-                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
-                        info = ydl.extract_info(download_item.url, download=False)
+                    info = ytdlp_wrapper.extract_info(download_item.url, extra_args=extra)
                     if info:
                         break
                 except Exception:
                     continue
 
             if info:
-                # Use HTML extraction for titles
-                self.logger.info("Using HTML extraction for title (bypasses time/region issues)")
                 html_title = self._extract_title_from_html(download_item.url)
-
                 if html_title:
                     title = html_title
                     self.logger.info(f"HTML title extracted: '{title}'")
                 else:
-                    # Fallback на yt-dlp только если HTML не сработал
                     title = info.get('title', 'Unknown Title')
                     self.logger.warning(f"HTML extraction failed, using yt-dlp title: '{title}'")
 
@@ -369,7 +340,6 @@ class DownloadManager:
                     
         except Exception as e:
             self.logger.warning(f"Failed to get video info: {e}")
-            # Try HTML extraction as last resort before fallback
             html_title = self._extract_title_from_html(download_item.url)
             if html_title:
                 download_item.title = html_title
@@ -418,89 +388,57 @@ class DownloadManager:
             
     def _download_worker(self, download_item: DownloadItem):
         """Worker thread for downloading"""
-        # Browser fallback chain: Chrome → Firefox → Edge → no cookies
         cookie_browsers = ['chrome', 'firefox', 'edge', None]
         last_error = None
         success = False
 
         for browser in cookie_browsers:
             try:
-                # Prepare yt-dlp options with browser-specific cookies
-                ydl_opts = self._prepare_ydl_options(download_item, browser=browser)
+                extra_args, format_spec, output_path = self._prepare_ydl_options(download_item, browser=browser)
 
-                # Add progress hook
-                ydl_opts['progress_hooks'] = [
-                    lambda d: self._progress_hook(d, download_item.id)
-                ]
+                def progress_callback(p):
+                    self._on_subprocess_progress(p, download_item.id)
 
-                # Add postprocessor hook for merger progress
-                ydl_opts['postprocessor_hooks'] = [
-                    lambda d: self._postprocessor_hook(d, download_item.id)
-                ]
+                exit_code = ytdlp_wrapper.download(
+                    download_item.url, output_path, format_spec,
+                    extra_args=extra_args,
+                    progress_callback=progress_callback
+                )
 
-                # Start download
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    format_selector = ydl_opts.get('format', '')
-                    self._current_format_selector = format_selector
+                if exit_code == 0:
+                    download_item.status = DownloadStatus.COMPLETED
+                    download_item.completed_at = time.time()
+                    download_item.progress = 100.0
+                    download_item.speed = ''
+                    download_item.eta = ''
 
-                    if '+' in format_selector or 'bestvideo' in format_selector:
-                        self.logger.info(f"Format selector '{format_selector}' may require merging")
+                    self.logger.info(f"Download completed: {download_item.title}")
+                    self.log_download_event("COMPLETED", download_item.url, download_item.title)
 
-                    ydl.download([download_item.url])
+                    if self.notification_manager:
+                        self.notification_manager.show_success(
+                            "Download Complete",
+                            f"'{download_item.title}' has been downloaded successfully"
+                        )
 
-                    if '+' in format_selector or 'bestvideo' in format_selector:
-                        download_item.speed = 'Merging formats...'
-                        download_item.eta = 'Processing'
-                        download_item.progress = 100
-                        self.logger.info(f"Post-download merger indicator for {download_item.title}")
-                        print(f"   🔄 Post-download merging for: {download_item.title}")
-                        self._notify_progress_change(download_item.id)
-
-                        import threading
-                        def clear_merger_indicator():
-                            time.sleep(3)
-                            if download_item.status.value != 'completed':
-                                download_item.speed = ''
-                                download_item.eta = ''
-                                self._notify_progress_change(download_item.id)
-
-                        threading.Thread(target=clear_merger_indicator, daemon=True).start()
-
-                # Mark as completed
-                download_item.status = DownloadStatus.COMPLETED
-                download_item.completed_at = time.time()
-                download_item.progress = 100.0
-                download_item.speed = ''
-                download_item.eta = ''
-
-                self.logger.info(f"Download completed: {download_item.title}")
-                self.log_download_event("COMPLETED", download_item.url, download_item.title)
-
-                if self.notification_manager:
-                    self.notification_manager.show_success(
-                        "Download Complete",
-                        f"'{download_item.title}' has been downloaded successfully"
-                    )
-
-                success = True
-                break  # Exit browser loop on success
+                    success = True
+                    break
+                else:
+                    raise Exception(f"yt-dlp exited with code {exit_code}")
 
             except Exception as e:
                 last_error = e
                 error_msg = str(e).lower()
                 self.logger.warning(f"Download attempt with {browser or 'no cookies'} failed: {e}")
 
-                # If auth or access error, try next browser
                 if any(kw in error_msg for kw in ['sign in', 'confirm you', 'bot', 'cookie', '403', 'forbidden']):
                     if browser is not None:
                         self.logger.info(f"Auth/access issue with {browser}, trying next browser...")
                         continue
 
-                # Non-recoverable error or all browsers exhausted
                 break
 
         if not success:
-            # All attempts failed
             self.logger.error(f"Download failed: {last_error}")
             download_item.status = DownloadStatus.FAILED
             download_item.error_message = translate_error(last_error)
@@ -510,187 +448,87 @@ class DownloadManager:
             if self.error_handler:
                 self.error_handler.handle_download_error(last_error, download_item.url, show_user=True)
 
-        # Save to history
         try:
             self.history_manager.add_download(download_item)
         except Exception as e:
             self.logger.error(f"Failed to save to history: {e}")
 
-        # Clean up
         if download_item.id in self.active_downloads:
             del self.active_downloads[download_item.id]
 
         self._notify_progress_change(download_item.id)
         self._process_queue()
-            
-    def _prepare_ydl_options(self, download_item: DownloadItem, browser: str = None) -> Dict:
-        """Prepare yt-dlp options for download"""
-        output_path = Path(download_item.output_path)
 
-        # Get format with high-quality fallback
+    def _on_subprocess_progress(self, progress: dict, download_id: str):
+        """Handle progress callback from subprocess download."""
+        try:
+            download_item = self.get_download_item(download_id)
+            if not download_item:
+                return
+
+            percent = progress.get('percent', 0)
+            download_item.progress = percent
+            download_item.speed = progress.get('speed', '')
+            download_item.eta = progress.get('eta', '')
+
+            if 'error' in progress:
+                download_item.status = DownloadStatus.FAILED
+                download_item.error_message = progress['error']
+
+            self._notify_progress_change(download_id)
+        except Exception as e:
+            self.logger.error(f"Subprocess progress error: {e}")
+
+    def _prepare_ydl_options(self, download_item: DownloadItem, browser: str = None):
+        """Prepare yt-dlp CLI arguments. Returns (extra_args, format_spec, output_template)."""
+        output_path = Path(download_item.output_path)
+        output_template = str(output_path / '%(title)s.%(ext)s')
         format_id = download_item.format_info.get('format_id', 'bestvideo+bestaudio/best')
 
-        self.logger.info(f"Preparing download for: {download_item.url}")
-        self.logger.info(f"Format info: {download_item.format_info}")
-        self.logger.info(f"Using format_id: {format_id}")
+        self.logger.info(f"Preparing download: url={download_item.url}, format={format_id}")
 
-        # ИСПРАВЛЕНИЕ ПРОБЛЕМЫ С СЕРЫМ ВИДЕО И МЕРЦАНИЕМ ДЛЯ НИЗКИХ КАЧЕСТВ
-        # Для качеств 480p и ниже: используем простые селекторы без слияния потоков
-        # Для высоких качеств: применяем сложную логику с кодеками
+        extra_args = [
+            '--no-playlist',
+            '--merge-output-format', 'mp4',
+            '--no-check-certificate',
+            '--add-header', 'Accept-Language: ru-RU,ru;q=0.9',
+            '--add-header', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            '--retries', '3',
+            '--fragment-retries', '3',
+            '--extractor-retries', '3',
+        ]
+
         if not download_item.format_info.get('audio_only'):
-            import re
-
-            # Ищем ограничения по высоте в format_id
             height_match = re.search(r'height<=(\d+)', format_id)
-
-            # Проверяем, содержит ли селектор ограничения для низких качеств
-            is_low_quality_selector = (height_match and
-                                     int(height_match.group(1)) <= 480)
-
-            if is_low_quality_selector:
-                # Для качеств 480p и ниже - применяем специальную логику H.264
-                height = int(height_match.group(1))
-
-                # Если это уже правильный селектор с приоритетом H.264, оставляем как есть
-                if 'vcodec^=avc1' in format_id:
-                    self.logger.info(f"Quality {height}p: Using H.264 priority selector to avoid gray filter")
-                    print(f"   📱 {height}p → Селектор с приоритетом H.264 (избегаем серый фильтр)")
-                else:
-                    # Если это старый селектор, заменяем на правильный
-                    format_id = f'best[height<={height}][ext=mp4][vcodec!=none][acodec!=none]/bestvideo[height<={height}][vcodec^=avc1]+bestaudio[acodec^=mp4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]'
-                    self.logger.info(f"Quality {height}p: Replaced with H.264 priority selector")
-                    print(f"   📱 {height}p → Заменен на селектор с приоритетом H.264")
-            elif 'bestvideo' in format_id:
-                if height_match:
-                    height = int(height_match.group(1))
-
-                    if height <= 1080:
-                        # Medium qualities: strict H.264 + FORCED RUSSIAN AUDIO
-                        # CRITICALLY IMPORTANT: Force Russian language in selector
-                        format_id = f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio/best'
-                        self.logger.info(f"Quality {height}p: H.264 codec + forced Russian audio")
-                        print(f"   {height}p -> H.264 codec + FORCED RUSSIAN AUDIO")
-                    else:
-                        # High qualities: any codec + FORCED RUSSIAN AUDIO
-                        format_id = f'bestvideo[height<={height}]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio/best'
-                        self.logger.info(f"Quality {height}p: Any codec + forced Russian audio")
-                        print(f"   🖥️ {height}p → Любой кодек + ПРИНУДИТЕЛЬНО РУССКОЕ АУДИО")
-                else:
-                    # Нет ограничения по качеству - простой селектор
-                    format_id = 'bestvideo+bestaudio/best'
-                    self.logger.info("Best quality: simple selector, FFmpeg will handle compatibility")
-            elif format_id == 'best':
-                format_id = 'bestvideo+bestaudio/best'
-                self.logger.info("Best quality (replacing 'best'): simple selector")
-
-        ydl_opts = {
-            'outtmpl': str(output_path / '%(title)s.%(ext)s'),
-            'format': format_id,
-            'noplaylist': True,
-            # Disable additional files - MP4 only!
-            'writeinfojson': False,
-            'writethumbnail': False,
-            'writesubtitles': False,
-            'writeautomaticsub': False,
-            # CRITICALLY IMPORTANT SETTINGS FOR GETTING ORIGINAL AUDIO TRACK
-            'geo_bypass': False,  # Disable geo-bypass to preserve regional settings
-            'prefer_original_language': True,  # Prefer original language
-            # FORCED HTTP HEADERS FOR RUSSIAN CONTENT
-            'http_headers': {
-                'Accept-Language': 'ru-RU,ru;q=0.9',  # FORCED Russian language
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            },
-            # Настройки для обхода ограничений YouTube
-            'ignoreerrors': False,
-            'extractor_retries': 3,
-            'fragment_retries': 3,
-            # МИНИМАЛЬНЫЕ НАСТРОЙКИ ДЛЯ СТАБИЛЬНОСТИ
-            'merge_output_format': 'mp4',  # Принудительно MP4
-            # Дополнительные настройки для оригинального контента
-            'no_check_certificate': True,
-            'prefer_insecure': False,
-            'call_home': False,
-            # МИНИМАЛЬНЫЕ настройки для стабильности - не переопределяем заголовки
-            # Пусть yt-dlp сам управляет HTTP заголовками для лучшей совместимости
-        }
-
-        # Add format-specific options ONLY for audio
-        if download_item.format_info.get('audio_only'):
-            ydl_opts['format'] = 'bestaudio/best'
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': download_item.format_info.get('audio_format', 'mp3'),
-                'preferredquality': download_item.format_info.get('audio_quality', '192'),
-            }]
-            self.logger.info("Audio-only download configured")
-        else:
-            # ВИДЕО ЗАГРУЗКА - все видео в MP4 формате для совместимости
-            # Избегаем WebM из-за проблем с зависаниями при воспроизведении
-
             quality = download_item.format_info.get('quality', '')
 
-            # Все видео принудительно в MP4 формате
-            ydl_opts['merge_output_format'] = 'mp4'
+            sort_args = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'ext:mp4', 'size']
+            extra_args.append('--format-sort')
+            extra_args.append(','.join(sort_args))
+            extra_args.append('--prefer-free-formats')
+            extra_args.append('false')
 
-            # Определяем качество для настройки сортировки и постпроцессинга
-            import re
-            height_match = re.search(r'(\d+)p', quality) if quality else None
-            height = int(height_match.group(1)) if height_match else 1080
-
-            # Дополнительные настройки для обеспечения совместимости
-            # Для низких качеств (480p и ниже) - строгий приоритет H.264
-            if height <= 480:
-                ydl_opts['format_sort'] = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'ext:mp4', 'size']
-                print(f"   📱 {height}p → Строгий приоритет H.264 кодека для избежания серого фильтра")
+            if height_match:
+                height = int(height_match.group(1))
+                if height > 1080:
+                    extra_args.append('--remux-video')
+                    extra_args.append('mp4')
+                    extra_args.append('--postprocessor-args')
+                    extra_args.append('ffmpeg:-c:v libx264 -c:a copy -preset ultrafast -pix_fmt yuv420p')
             else:
-                ydl_opts['format_sort'] = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'size']
-            ydl_opts['prefer_free_formats'] = False  # Не предпочитаем WebM/VP9
+                extra_args.append('--remux-video')
+                extra_args.append('mp4')
+        else:
+            audio_fmt = download_item.format_info.get('audio_format', 'mp3')
+            audio_quality = download_item.format_info.get('audio_quality', '192')
+            extra_args.extend(['--extract-audio', '--audio-format', audio_fmt, '--audio-quality', audio_quality])
+            format_id = 'bestaudio/best'
 
-            # Определяем, нужен ли постпроцессинг для высоких качеств
-
-            if height > 1080:
-                # Для высоких качеств (2K/4K) добавляем FFmpeg постпроцессинг
-                # чтобы исправить проблему с серым фильтром при использовании VP9
-                ydl_opts['postprocessors'] = [{
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
-                }]
-
-                # Минимальные аргументы для исправления цветов
-                ydl_opts['postprocessor_args'] = {
-                    'ffmpeg': [
-                        '-c:v', 'libx264',      # H.264 кодек
-                        '-c:a', 'copy',         # Копируем аудио без перекодирования
-                        '-preset', 'ultrafast', # Максимально быстрое кодирование
-                        '-pix_fmt', 'yuv420p',  # Правильный формат пикселей
-                    ]
-                }
-
-                self.logger.info(f"High quality {height}p: Adding minimal FFmpeg processing to fix gray filter")
-                print(f"   🔄 {height}p → Минимальный FFmpeg для исправления серого фильтра")
-
-            # Логирование настроек качества
-            self.logger.info(f"Quality {height}p: MP4 format (compatible, no freezing)")
-            print(f"   📱 {height}p → MP4 (совместимо, без зависаний)")
-
-            self.logger.info(f"Video download configured with format: {format_id}")
-
-        # Добавляем cookies для обхода региональных ограничений
         cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
         if cookie_opts:
-            ydl_opts.update(cookie_opts)
-            browser_name = cookie_opts.get('cookiesfrombrowser', ['unknown'])[0]
-            self.logger.info(f"Using cookies from browser: {browser_name}")
-            print(f"   🍪 Используем cookies из браузера {browser_name} для получения оригинальной озвучки")
-        else:
-            self.logger.warning("No cookies available - may get dubbed audio instead of original")
-            print(f"   ⚠️  Cookies недоступны - возможна дублированная озвучка вместо оригинальной")
+            extra_args.extend(cookie_opts_to_cli(cookie_opts))
 
-        # Финальная диагностика настроек
-        self.logger.info(f"Final yt-dlp options: format='{ydl_opts['format']}', cookie browser='{browser or 'none'}'")
-        print(f"   🔧 Финальные настройки: формат='{ydl_opts['format']}', cookies={browser or 'нет'}")
-
-        return ydl_opts
+        return extra_args, format_id, output_template
         
     def _progress_hook(self, d: Dict, download_id: str):
         """Handle download progress updates"""

@@ -11,6 +11,25 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 
+def cookie_opts_to_cli(cookie_opts: Dict[str, Any]) -> List[str]:
+    """Convert Python dict cookie options to yt-dlp CLI arguments."""
+    args = []
+    for key, value in cookie_opts.items():
+        if key == 'cookiesfrombrowser':
+            browser_name = value[0] if isinstance(value, tuple) else value
+            args.extend(['--cookies-from-browser', browser_name])
+        elif key == 'cookiefile':
+            args.extend(['--cookies', str(value)])
+        elif key == 'user_agent':
+            args.extend(['--user-agent', value])
+        elif key == 'referer':
+            args.extend(['--referer', value])
+        elif key == 'headers' and isinstance(value, dict):
+            for k, v in value.items():
+                args.extend(['--add-header', f'{k}: {v}'])
+    return args
+
+
 class CookieManager:
     """Cookie manager"""
 

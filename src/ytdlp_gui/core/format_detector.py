@@ -5,12 +5,12 @@ Author: vokrob (Данил Борков)
 Date: 18.07.2025
 """
 
-import yt_dlp
 import logging
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
-from .cookie_manager import CookieManager
+from .cookie_manager import CookieManager, cookie_opts_to_cli
+from . import ytdlp_wrapper
 
 @dataclass
 class FormatInfo:
@@ -61,39 +61,23 @@ class FormatDetector:
         Returns: (video_formats, audio_formats, video_info)
         """
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'listformats': False,
-                'extract_flat': False,
-                'noplaylist': True,
-                # SETTINGS FOR GETTING ORIGINAL VIDEO VERSION
-                'geo_bypass': False,  # Disable geo-bypass to preserve original audio track
-                'prefer_original_language': True,  # Prefer original language
-                'ignoreerrors': False,
-                'no_check_certificate': True,
-                # User agent WITHOUT language preferences
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                # Headers WITHOUT language preferences
-                'headers': {
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                }
-            }
+            base_args = [
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                '--add-header', 'Accept-Encoding: gzip, deflate',
+                '--add-header', 'DNT: 1',
+                '--add-header', 'Connection: keep-alive',
+                '--add-header', 'Upgrade-Insecure-Requests: 1',
+            ]
 
-            # Try with multiple browsers for cookies, then fall back to no cookies
             info = None
             for browser in ['chrome', 'firefox', 'edge', None]:
-                browser_opts = ydl_opts.copy()
+                extra = list(base_args)
                 if self.cookie_manager:
                     cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
-                    browser_opts.update(cookie_opts)
+                    extra.extend(cookie_opts_to_cli(cookie_opts))
                 try:
-                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
-                        info = ydl.extract_info(url, download=False)
+                    info = ytdlp_wrapper.extract_info(url, extra_args=extra)
                     if info:
                         break
                 except Exception:
@@ -281,40 +265,14 @@ class FormatDetector:
     def is_playlist(self, url: str) -> bool:
         """Check if URL is a playlist"""
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': True,
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return info and info.get('_type') == 'playlist'
-                
+            return ytdlp_wrapper.is_playlist(url)
         except Exception:
             return False
             
     def get_playlist_info(self, url: str) -> Dict:
         """Get playlist information"""
         try:
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': True,
-            }
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                
-                if info and info.get('_type') == 'playlist':
-                    return {
-                        'title': info.get('title', 'Unknown Playlist'),
-                        'uploader': info.get('uploader', 'Unknown'),
-                        'entry_count': len(info.get('entries', [])),
-                        'entries': info.get('entries', []),
-                    }
-                    
+            return ytdlp_wrapper.get_playlist_info(url)
         except Exception as e:
             self.logger.error(f"Failed to get playlist info: {e}")
-            
-        return {}
+            return {}
