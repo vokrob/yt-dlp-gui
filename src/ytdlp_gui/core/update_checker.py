@@ -125,7 +125,7 @@ class UpdateChecker:
         system = platform.system()
 
         if system == "Windows":
-            suffix = "windows-amd64.exe"
+            suffix = ".exe"
         elif system == "Darwin":
             suffix = "macos-amd64"
         elif system == "Linux":

@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           mkdir release
-          cp yt-dlp-gui-windows-amd64/yt-dlp-gui.exe release/yt-dlp-gui-windows-amd64.exe
+          cp yt-dlp-gui-windows-amd64/yt-dlp-gui.exe release/yt-dlp-gui.exe
           echo "=== Release files ==="
           ls -lh release/
 
