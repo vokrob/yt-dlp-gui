@@ -1,4 +1,4 @@
 """YT-DLP GUI"""
 
-__version__ = "1.1.1"
+__version__ = "1.1.0"
 __author__ = "Danil Borkov"

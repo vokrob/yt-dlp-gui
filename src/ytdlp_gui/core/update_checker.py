@@ -9,8 +9,6 @@ import logging
 import platform
 import subprocess
 import tempfile
-import zipfile
-import tarfile
 import shutil
 from pathlib import Path
 from typing import Optional, Callable, Dict
@@ -127,11 +125,11 @@ class UpdateChecker:
         system = platform.system()
 
         if system == "Windows":
-            suffix = "windows-amd64.zip"
+            suffix = "windows-amd64.exe"
         elif system == "Darwin":
-            suffix = "macos-amd64.tar.gz"
+            suffix = "macos-amd64"
         elif system == "Linux":
-            suffix = "linux-amd64.tar.gz"
+            suffix = "linux-amd64"
         else:
             return None
 
@@ -146,12 +144,12 @@ class UpdateChecker:
         self, url: str, dest_dir: str,
         progress_callback: Optional[Callable] = None
     ) -> Optional[str]:
-        """Download release archive and extract executable. Returns path to exe."""
+        """Download executable directly. Returns path to exe."""
         os.makedirs(dest_dir, exist_ok=True)
 
         system = platform.system()
-        archive_name = "update.zip" if system == "Windows" else "update.tar.gz"
-        archive_path = os.path.join(dest_dir, archive_name)
+        exe_name = "yt-dlp-gui.exe" if system == "Windows" else "yt-dlp-gui"
+        exe_path = os.path.join(dest_dir, exe_name)
 
         try:
             resp = requests.get(url, stream=True, timeout=30)
@@ -160,7 +158,7 @@ class UpdateChecker:
             total_size = int(resp.headers.get("content-length", 0))
             downloaded = 0
 
-            with open(archive_path, "wb") as f:
+            with open(exe_path, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
@@ -168,31 +166,10 @@ class UpdateChecker:
                         if progress_callback and total_size > 0:
                             progress_callback(downloaded / total_size)
 
-            exe_name = "yt-dlp-gui.exe" if system == "Windows" else "yt-dlp-gui"
+            if system != "Windows":
+                os.chmod(exe_path, 0o755)
 
-            if system == "Windows":
-                with zipfile.ZipFile(archive_path, "r") as zf:
-                    zf.extract(exe_name, dest_dir)
-            else:
-                with tarfile.open(archive_path, "r:gz") as tf:
-                    tf.extract(exe_name, dest_dir)
-
-            extracted = os.path.join(dest_dir, exe_name)
-            if os.path.exists(extracted):
-                if system != "Windows":
-                    os.chmod(extracted, 0o755)
-                return extracted
-
-            for root, _dirs, files in os.walk(dest_dir):
-                for f in files:
-                    if f == exe_name:
-                        p = os.path.join(root, f)
-                        if system != "Windows":
-                            os.chmod(p, 0o755)
-                        return p
-
-            self.logger.error(f"Executable not found in archive: {exe_name}")
-            return None
+            return exe_path
 
         except Exception as e:
             self.logger.error(f"Failed to download update: {e}")

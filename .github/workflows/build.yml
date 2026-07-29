@@ -48,11 +48,11 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
-      - name: Create release archive
+      - name: Prepare release artifact
         shell: bash
         run: |
           mkdir release
-          zip -9 "release/yt-dlp-gui-windows-amd64.zip" yt-dlp-gui-windows-amd64/yt-dlp-gui.exe
+          cp yt-dlp-gui-windows-amd64/yt-dlp-gui.exe release/yt-dlp-gui-windows-amd64.exe
           echo "=== Release files ==="
           ls -lh release/
 

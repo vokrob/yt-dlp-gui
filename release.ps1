@@ -5,9 +5,9 @@
     Usage: .\release.ps1 <patch|minor|major>
 
     Examples:
-        .\release.ps1 patch   # 1.1.1 -> 1.1.2
-        .\release.ps1 minor   # 1.1.1 -> 1.2.0
-        .\release.ps1 major   # 1.1.1 -> 2.0.0
+    .\release.ps1 patch   # 1.1.0 -> 1.1.1
+    .\release.ps1 minor   # 1.1.0 -> 1.2.0
+    .\release.ps1 major   # 1.1.0 -> 2.0.0
 #>
 
 param(

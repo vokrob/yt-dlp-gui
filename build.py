@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Application information
 APP_NAME = "yt-dlp-gui"
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.0"
 APP_DESCRIPTION = "Modern GUI for yt-dlp - Video & Audio Downloader"
 
 # Build configuration
