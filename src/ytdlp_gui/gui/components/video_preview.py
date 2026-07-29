@@ -488,9 +488,14 @@ class VideoPreviewFrame(ctk.CTkFrame):
         lower = clean.lower()
 
         messages = {
+            "no video formats found": (
+                "YouTube изменил свои API. Форматы видео не найдены.\n\n"
+                "Подождите выхода новой версии yt-dlp (обычно 1-2 дня)."
+            ),
             "failed to extract any player response": (
-                "YouTube изменил свои API. Функция извлечения временно недоступна.\n\n"
-                "Подождите обновления yt-dlp или попробуйте другой формат."
+                "YouTube изменил свои API — функция извлечения недоступна.\n\n"
+                "Приложение уже загрузило самую свежую сборку yt-dlp, но YouTube\n"
+                "требует нового обновления. Обычно yt-dlp выпускает патч за 1-2 дня."
             ),
             "video unavailable": (
                 "Видео недоступно. Оно может быть:\n"
