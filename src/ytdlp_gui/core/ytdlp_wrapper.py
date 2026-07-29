@@ -7,12 +7,33 @@ import json
 import logging
 import re
 import sys
+import platform
+import threading
 from pathlib import Path
 from typing import Optional, Callable, List
 
 from . import binary_manager
 
 logger = logging.getLogger(__name__)
+
+# Thread-local storage for last yt-dlp error message
+_last_error = threading.local()
+
+
+def _set_last_error(msg: str):
+    _last_error.msg = msg
+
+
+def get_last_error() -> str:
+    """Get the last yt-dlp error message from current thread."""
+    return getattr(_last_error, 'msg', '')
+
+
+def _create_no_window_flag() -> int:
+    """Return CREATE_NO_WINDOW flag on Windows, 0 otherwise."""
+    if platform.system() == 'Windows':
+        return subprocess.CREATE_NO_WINDOW
+    return 0
 
 
 def find_ytdlp() -> str:
@@ -44,16 +65,26 @@ def extract_info(url: str, extra_args: List[str] = None, timeout: int = 30) -> O
         cmd.extend(extra_args)
     cmd.append(url)
 
+    flags = _create_no_window_flag()
+
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout,
+                                creationflags=flags)
         if result.returncode != 0:
-            logger.warning(f"yt-dlp extract_info failed: {result.stderr[:300]}")
+            msg = result.stderr[:500].strip()
+            _set_last_error(msg)
+            logger.warning(f"yt-dlp extract_info failed: {msg}")
             return None
+        _set_last_error('')
         return json.loads(result.stdout) if result.stdout.strip() else None
     except subprocess.TimeoutExpired:
-        logger.warning(f"yt-dlp extract_info timed out for {url}")
+        msg = f"yt-dlp timed out after {timeout}s"
+        _set_last_error(msg)
+        logger.warning(f"{msg} for {url}")
         return None
     except Exception as e:
+        msg = str(e)
+        _set_last_error(msg)
         logger.warning(f"yt-dlp extract_info error: {e}")
         return None
 
@@ -116,8 +147,10 @@ def download(url: str, output_path: str, format_spec: str,
         cmd.extend(extra_args)
     cmd.append(url)
 
+    flags = _create_no_window_flag()
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                creationflags=flags)
         for raw_line in iter(proc.stdout.readline, b''):
             try:
                 line = raw_line.decode('utf-8').strip()

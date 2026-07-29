@@ -10,6 +10,7 @@ import zipfile
 import shutil
 import logging
 import subprocess
+import platform
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -86,9 +87,11 @@ def update_ytdlp() -> None:
         exe = get_bin_dir() / 'yt-dlp.exe'
         if not exe.exists():
             return
+        flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
         result = subprocess.run(
             [str(exe), '--update'],
-            capture_output=True, text=True, timeout=60
+            capture_output=True, text=True, timeout=60,
+            creationflags=flags
         )
         if result.returncode == 0:
             msg = result.stdout.strip() or result.stderr.strip() or "updated"

@@ -24,11 +24,13 @@ from ytdlp_gui.core import ytdlp_wrapper
 class VideoPreviewFrame(ctk.CTkFrame):
     """Frame for displaying video preview with title and thumbnail"""
     
-    def __init__(self, parent, on_download_click: Optional[Callable] = None, settings_manager=None):
+    def __init__(self, parent, on_download_click: Optional[Callable] = None, settings_manager=None,
+                 on_info_loaded: Optional[Callable] = None):
         super().__init__(parent)
         self.logger = logging.getLogger(__name__)
         self.on_download_click = on_download_click
         self.settings_manager = settings_manager
+        self.on_info_loaded = on_info_loaded
 
         # Initialize cookie manager if settings_manager is available
         self.cookie_manager = None
@@ -286,7 +288,12 @@ class VideoPreviewFrame(ctk.CTkFrame):
                     continue
 
             if not info:
-                if last_auth_error:
+                real_error = ytdlp_wrapper.get_last_error()
+                if real_error and self._is_authentication_error(real_error, url):
+                    self.after(0, lambda msg=real_error: self._show_authentication_error(msg, url))
+                elif real_error:
+                    self.after(0, lambda m=real_error: self._show_error(m))
+                elif last_auth_error:
                     self.after(0, lambda msg=last_auth_error: self._show_authentication_error(msg, url))
                 else:
                     self.after(0, lambda: self._show_error("Could not load video information"))
@@ -352,7 +359,9 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 else:
                     self.after(0, self._finalize_loading)
             else:
-                self.after(0, lambda: self._show_error("Could not load video information"))
+                real_error = ytdlp_wrapper.get_last_error()
+                display_msg = real_error if real_error else "Could not load video information"
+                self.after(0, lambda m=display_msg: self._show_error(m))
 
         except Exception as e:
             self.logger.error(f"Failed to fetch video info: {e}")
@@ -361,7 +370,6 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _update_video_info(self):
         """Update UI with video information (runs on main thread)"""
         if not self.video_info:
-
             return
 
         # Update title
@@ -373,6 +381,10 @@ class VideoPreviewFrame(ctk.CTkFrame):
         # Update channel (without duration)
         uploader = self.video_info['uploader']
         self.channel_label.configure(text=uploader)
+
+        # Notify parent that info is loaded so it can load formats
+        if self.on_info_loaded and self.video_info.get('url'):
+            self.on_info_loaded(self.video_info['url'])
         
     def _load_thumbnail(self, thumbnail_url: str):
         """Load thumbnail image from URL"""
@@ -447,7 +459,10 @@ class VideoPreviewFrame(ctk.CTkFrame):
         """Show error message"""
         self.title_label.configure(text="Error loading video")
         self.channel_label.configure(text="")
-        self.thumbnail_label.configure(text=message)
+        # Truncate long yt-dlp stderr to keep UI clean
+        if len(message) > 400:
+            message = message[:397] + "..."
+        self.thumbnail_label.configure(text=message, wraplength=700)
         self.show_content()
 
     def _is_authentication_error(self, error_msg: str, url: str) -> bool:

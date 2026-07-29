@@ -187,7 +187,8 @@ class YTDLPGUIApp:
         self.video_preview_frame = VideoPreviewFrame(
             self.main_frame,
             on_download_click=self.on_preview_download_click,
-            settings_manager=self.settings_manager
+            settings_manager=self.settings_manager,
+            on_info_loaded=self._on_video_info_loaded
         )
 
         self.download_options_frame = DownloadOptionsFrame(
@@ -313,11 +314,8 @@ class YTDLPGUIApp:
         # Force update and refresh
         self.main_frame.update_idletasks()
 
-        # Load video info
+        # Load video info (formats will load automatically after via callback)
         self.video_preview_frame.load_video_info(url)
-
-        # Load available video qualities
-        self.download_options_frame.load_video_qualities(url)
 
         self.logger.info("Preview state setup complete")
 
@@ -373,6 +371,11 @@ class YTDLPGUIApp:
             self.logger.error(f"Failed to show preview state: {e}")
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
+
+    def _on_video_info_loaded(self, url: str):
+        """Handle video info loaded — load formats sequentially"""
+        self.logger.info(f"Video info loaded, now loading formats for: {url}")
+        self.download_options_frame.load_video_qualities(url)
 
     def on_preview_download_click(self, url: str):
         """Handle download click from video preview"""
