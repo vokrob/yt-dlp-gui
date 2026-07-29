@@ -400,6 +400,12 @@ class YTDLPGUIApp:
                 self.current_url, format_info, output_path, video_title
             )
             self.logger.info(f"Download started with ID: {download_id}")
+
+            # Register real-time progress callback
+            self.download_manager.add_progress_callback(
+                download_id,
+                lambda: self.root.after(0, self.update_progress_display)
+            )
         except Exception as e:
             self.logger.error(f"Failed to start download: {e}")
             self.progress_frame.show_error(f"Failed to start download: {str(e)}")
@@ -501,8 +507,7 @@ class YTDLPGUIApp:
         except Exception as e:
             self.logger.error(f"Error updating progress display: {e}")
 
-        # Schedule next update
-        self.root.after(1000, self.update_progress_display)  # Update every 1000ms (1 second)
+
         
     def on_url_change(self, url):
         """Handle URL input change"""

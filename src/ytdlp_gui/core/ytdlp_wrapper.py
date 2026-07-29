@@ -89,24 +89,15 @@ def get_playlist_info(url: str, extra_args: List[str] = None) -> dict:
     return {}
 
 
-_PROGRESS_RE = re.compile(
-    r'\[download\]\s+([\d.]+)%\s+'
-    r'(?:of\s+~?)?([\d.]+\s*[A-Za-z]+(?:/s)?)?'
-    r'(?:\s+at\s+([\d.]+\s*[A-Za-z/]+))?'
-    r'(?:\s+ETA\s+(\S+))?'
-)
+_PROGRESS_RE = re.compile(r'\[download\]\s+([\d.]+)%')
 
 
 def _parse_progress(line: str) -> Optional[dict]:
-    """Parse a single yt-dlp stderr line for progress info."""
+    """Parse yt-dlp progress line. Returns None if no progress found."""
     m = _PROGRESS_RE.search(line)
-    if not m:
-        return None
-    return {
-        'percent': float(m.group(1)),
-        'speed': m.group(3) or '',
-        'eta': m.group(4) or '',
-    }
+    if m:
+        return {'percent': float(m.group(1)), 'speed': '', 'eta': ''}
+    return None
 
 
 def download(url: str, output_path: str, format_spec: str,
@@ -114,10 +105,10 @@ def download(url: str, output_path: str, format_spec: str,
              progress_callback: Callable = None) -> int:
     """
     Download video using yt-dlp subprocess.
-    Parses stderr for progress updates.
+    Parses stdout for progress updates.
     Returns exit code (0 = success).
     """
-    cmd = [find_ytdlp(), '--newline', '--no-warnings', '--quiet',
+    cmd = [find_ytdlp(), '--newline', '--no-warnings',
            '--no-check-certificate',
            '-o', output_path, '-f', format_spec]
     cmd.extend(_ffmpeg_args())
@@ -126,30 +117,27 @@ def download(url: str, output_path: str, format_spec: str,
     cmd.append(url)
 
     try:
-        with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                              text=True, bufsize=1) as proc:
-            for line in proc.stderr:
-                if not line:
-                    continue
-                line_stripped = line.strip()
-                if not line_stripped:
-                    continue
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        for raw_line in iter(proc.stdout.readline, b''):
+            try:
+                line = raw_line.decode('utf-8').strip()
+            except UnicodeDecodeError:
+                line = raw_line.decode('cp1251', errors='replace').strip()
+            if not line:
+                continue
 
-                if 'ERROR:' in line_stripped:
-                    logger.error(f"yt-dlp: {line_stripped[:300]}")
+            if 'ERROR:' in line:
+                logger.error(f"yt-dlp: {line[:300]}")
 
-                progress = _parse_progress(line_stripped)
-                if progress and progress_callback:
+            progress = _parse_progress(line)
+            if progress:
+                if progress_callback:
                     progress_callback(progress)
 
-                if 'has already been downloaded' in line_stripped:
-                    if progress_callback:
-                        progress_callback({'percent': 100.0, 'speed': '', 'eta': ''})
-
-            proc.wait()
-            if progress_callback:
-                progress_callback({'percent': 100.0 if proc.returncode == 0 else 0})
-            return proc.returncode
+        proc.wait()
+        if progress_callback:
+            progress_callback({'percent': 100.0 if proc.returncode == 0 else 0})
+        return proc.returncode
 
     except Exception as e:
         logger.error(f"yt-dlp download failed: {e}")
@@ -157,10 +145,3 @@ def download(url: str, output_path: str, format_spec: str,
             progress_callback({'error': str(e)})
         return -1
 
-
-def get_stderr_error(stderr: str) -> str:
-    """Extract human-readable error from yt-dlp stderr output."""
-    for line in stderr.split('\n'):
-        if 'ERROR:' in line:
-            return line.split('ERROR:', 1)[1].strip()
-    return stderr[:200] if stderr else 'Unknown error'
