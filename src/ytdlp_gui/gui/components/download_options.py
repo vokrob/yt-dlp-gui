@@ -85,16 +85,15 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         )
         self.quality_dropdown.grid(row=0, column=3)
 
-        # Save path row
-        path_frame = ctk.CTkFrame(options_frame, fg_color="transparent")
-        path_frame.grid(row=2, column=0, pady=(0, 15), padx=15, sticky="ew")
-        path_frame.grid_columnconfigure(1, weight=1)
+        # Save path row — centered under options
+        path_frame = ctk.CTkFrame(self, fg_color="transparent")
+        path_frame.grid(row=1, column=0, pady=(0, 10))
 
         path_label = ctk.CTkLabel(path_frame, text="Save to:", font=ctk.CTkFont(size=12))
         path_label.grid(row=0, column=0, padx=(0, 8))
 
-        self.path_entry = ctk.CTkEntry(path_frame, height=32)
-        self.path_entry.grid(row=0, column=1, padx=(0, 8), sticky="ew")
+        self.path_entry = ctk.CTkEntry(path_frame, height=32, width=250)
+        self.path_entry.grid(row=0, column=1, padx=(0, 8))
         self.path_entry.delete(0, "end")
         self.path_entry.insert(0, self.settings_manager.get_output_directory())
 
