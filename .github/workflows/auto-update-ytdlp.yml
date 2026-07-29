@@ -19,13 +19,8 @@ jobs:
       - name: Check latest yt-dlp version on PyPI
         id: check
         run: |
-          LATEST=$(python3 -c "
-import json, urllib.request
-data = json.loads(urllib.request.urlopen('https://pypi.org/pypi/yt-dlp/json').read())
-print(data['info']['version'])
-")
+          LATEST=$(python3 -c "import json,urllib.request;print(json.loads(urllib.request.urlopen('https://pypi.org/pypi/yt-dlp/json').read())['info']['version'])")
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
-
           CURRENT=$(grep -oP 'yt-dlp>=\K[0-9.]+' requirements.txt)
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
 
