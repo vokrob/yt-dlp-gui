@@ -93,6 +93,16 @@ def main():
         setup_logging()
         if not _ensure_binaries():
             sys.exit(1)
+
+        # Auto-update yt-dlp in background after launch
+        def _auto_update():
+            try:
+                from .core import binary_manager
+                binary_manager.update_ytdlp()
+            except Exception:
+                pass
+        threading.Thread(target=_auto_update, daemon=True).start()
+
         app = YTDLPGUIApp()
         app.run()
     except Exception as e:
