@@ -459,11 +459,26 @@ class VideoPreviewFrame(ctk.CTkFrame):
             secs = seconds % 60
             return f"{hours}:{minutes:02d}:{secs:02d}"
             
+    @staticmethod
+    def _clean_error_message(message: str) -> str:
+        """Strip yt-dlp technical prefixes and suffix from error messages."""
+        # Remove "ERROR: [extractor] video_id: " prefix
+        msg = re.sub(r'^ERROR:\s*\[\w+\].*?: ', '', message, count=1)
+        # Remove "; please report this issue..." suffix
+        idx = msg.find('; please report this issue')
+        if idx > 0:
+            msg = msg[:idx]
+        # Remove trailing URL if any
+        idx = msg.find('https://')
+        if idx > 0:
+            msg = msg[:idx].rstrip(',; ')
+        return msg.strip()
+
     def _show_error(self, message: str):
         """Show error message"""
         self.title_label.configure(text="Error loading video")
         self.channel_label.configure(text="")
-        # Truncate long yt-dlp stderr to keep UI clean
+        message = self._clean_error_message(message)
         if len(message) > 400:
             message = message[:397] + "..."
         self.thumbnail_label.configure(text=message, wraplength=700)
