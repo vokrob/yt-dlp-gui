@@ -163,3 +163,5 @@ downloads/
 temp/
 cache/
 bin_dev/
+ffmpeg_cache/
+deno_cache/
