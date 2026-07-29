@@ -1,0 +1,51 @@
+name: Auto-Update yt-dlp
+
+on:
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check latest yt-dlp version on PyPI
+        id: check
+        run: |
+          LATEST=$(python3 -c "
+import json, urllib.request
+data = json.loads(urllib.request.urlopen('https://pypi.org/pypi/yt-dlp/json').read())
+print(data['info']['version'])
+")
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+
+          CURRENT=$(grep -oP 'yt-dlp>=\K[0-9.]+' requirements.txt)
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version and update deps
+        if: steps.check.outputs.latest != steps.check.outputs.current
+        env:
+          LATEST: ${{ steps.check.outputs.latest }}
+        run: |
+          APP_VER=$(grep -oP '__version__ = "\K[^"]+' src/ytdlp_gui/__init__.py)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$APP_VER"
+          NEW_VER="$MAJOR.$MINOR.$((PATCH + 1))"
+
+          sed -i "s/yt-dlp>=[0-9.]\+/yt-dlp>=$LATEST/g" requirements.txt pyproject.toml
+          sed -i "s/__version__ = \"$APP_VER\"/__version__ = \"$NEW_VER\"/" src/ytdlp_gui/__init__.py
+          sed -i "s/APP_VERSION = \"$APP_VER\"/APP_VERSION = \"$NEW_VER\"/" build.py
+          sed -i "s/version = \"$APP_VER\"/version = \"$NEW_VER\"/" pyproject.toml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: update yt-dlp to v$LATEST"
+          git tag "v$NEW_VER"
+          git push origin main --tags
