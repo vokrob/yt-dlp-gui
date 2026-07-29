@@ -12,6 +12,7 @@ import threading
 from pathlib import Path
 from typing import Dict, Optional, Callable, List
 from ytdlp_gui.core.format_detector import FormatDetector
+from tkinter import filedialog
 
 class DownloadOptionsFrame(ctk.CTkFrame):
     """Frame for download options - format and quality (saves to Desktop by default)"""
@@ -27,6 +28,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         self.available_qualities = []
         self.current_url = None
         self.best_quality = None
+        self._output_path = None
 
         self.setup_ui()
         
@@ -82,6 +84,40 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             width=140
         )
         self.quality_dropdown.grid(row=0, column=3)
+
+        # Save path row
+        path_frame = ctk.CTkFrame(options_frame, fg_color="transparent")
+        path_frame.grid(row=2, column=0, pady=(0, 15), padx=15, sticky="ew")
+        path_frame.grid_columnconfigure(1, weight=1)
+
+        path_label = ctk.CTkLabel(path_frame, text="Save to:", font=ctk.CTkFont(size=12))
+        path_label.grid(row=0, column=0, padx=(0, 8))
+
+        self.path_entry = ctk.CTkEntry(path_frame, height=32)
+        self.path_entry.grid(row=0, column=1, padx=(0, 8), sticky="ew")
+        self.path_entry.delete(0, "end")
+        self.path_entry.insert(0, self.settings_manager.get_output_directory())
+
+        self.browse_btn = ctk.CTkButton(
+            path_frame,
+            text="Browse...",
+            command=self.browse_directory,
+            height=32,
+            width=100
+        )
+        self.browse_btn.grid(row=0, column=2)
+
+    def browse_directory(self):
+        """Open directory browser dialog"""
+        initial = self._output_path or self.settings_manager.get_output_directory()
+        selected = filedialog.askdirectory(
+            title="Select Download Directory",
+            initialdir=initial
+        )
+        if selected:
+            self._output_path = selected
+            self.path_entry.delete(0, "end")
+            self.path_entry.insert(0, selected)
 
     def load_video_qualities(self, url: str):
         """Load available qualities for the video URL"""
@@ -192,15 +228,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         if self.on_download_click:
             format_info = self.get_format_info()
 
-            # AGGRESSIVE DIAGNOSTICS
-            print(f"DOWNLOAD_OPTIONS DEBUG:")
-            print(f"   get_format_info() returned = {format_info}")
-
-            # Use default output path from settings (Desktop)
-            output_path = self.settings_manager.get_output_directory()
-
-            print(f"   output_path = {output_path}")
-            print(f"   Calling on_download_click with format_info...")
+            output_path = self._output_path or self.settings_manager.get_output_directory()
 
             self.on_download_click(format_info, output_path)
             
