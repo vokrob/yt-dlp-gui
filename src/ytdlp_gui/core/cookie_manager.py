@@ -32,7 +32,7 @@ class CookieManager:
             'vkvideo.ru': ['edge', 'chrome', 'firefox'],
         }
         
-    def get_cookie_options(self, url: str = None) -> Dict[str, Any]:
+    def get_cookie_options(self, url: str = None, browser: str = None) -> Dict[str, Any]:
         """
         Get yt-dlp cookie options based on current settings
         Returns dictionary with cookie-related yt-dlp options
@@ -40,6 +40,19 @@ class CookieManager:
         network_settings = self.settings_manager.get_network_settings()
 
         if not network_settings.get('cookies_enabled', True):
+            return {}
+
+        # If specific browser requested, try only that one
+        if browser:
+            if self._is_browser_available(browser):
+                self.logger.info(f"Using cookies from {browser}")
+                cookie_options = {
+                    'cookiesfrombrowser': (browser, None, None, None)
+                }
+                if url:
+                    cookie_options.update(self._get_site_specific_options(url))
+                return cookie_options
+            self.logger.warning(f"Requested browser '{browser}' not available")
             return {}
 
         # Try to get cookies from preferred browser
@@ -57,16 +70,13 @@ class CookieManager:
 
         # Create list of browsers to try
         if site_browsers:
-            # Use site-specific preferences first
             browsers_to_try = site_browsers.copy()
-            # Add user preferences if not already included
             if preferred_browser not in browsers_to_try:
                 browsers_to_try.append(preferred_browser)
             for browser in fallback_browsers:
                 if browser not in browsers_to_try:
                     browsers_to_try.append(browser)
         else:
-            # Use normal preferences
             browsers_to_try = [preferred_browser]
             for browser in fallback_browsers:
                 if browser not in browsers_to_try:

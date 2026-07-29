@@ -280,6 +280,7 @@ class DownloadManager:
                 'quiet': True,
                 'no_warnings': True,
                 'extract_flat': False,
+                'noplaylist': True,
                 # Video extraction settings for original content
                 'geo_bypass': False,  # Preserve regional settings
                 'prefer_original_language': True,  # Prefer original language
@@ -303,16 +304,20 @@ class DownloadManager:
                 'call_home': False,
             }
 
-            # Add cookies for original content access
-            cookie_opts = self.cookie_manager.get_cookie_options(download_item.url)
-            if cookie_opts:
-                ydl_opts.update(cookie_opts)
-                self.logger.info("Using cookies for video info extraction to get original language")
-
-            # Try to get video info with fallback for generic titles
+            # Try with multiple browsers for cookies, then fall back to no cookies
             info = None
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(download_item.url, download=False)
+            for browser in ['chrome', 'firefox', 'edge', None]:
+                browser_opts = ydl_opts.copy()
+                cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
+                if cookie_opts:
+                    browser_opts.update(cookie_opts)
+                try:
+                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
+                        info = ydl.extract_info(download_item.url, download=False)
+                    if info:
+                        break
+                except Exception:
+                    continue
 
             if info:
                 # Use HTML extraction for titles
@@ -381,95 +386,112 @@ class DownloadManager:
             
     def _download_worker(self, download_item: DownloadItem):
         """Worker thread for downloading"""
-        try:
-            # Prepare yt-dlp options
-            ydl_opts = self._prepare_ydl_options(download_item)
-            
-            # Add progress hook
-            ydl_opts['progress_hooks'] = [
-                lambda d: self._progress_hook(d, download_item.id)
-            ]
+        # Browser fallback chain: Chrome → Firefox → Edge → no cookies
+        cookie_browsers = ['chrome', 'firefox', 'edge', None]
+        last_error = None
+        success = False
 
-            # Add postprocessor hook for merger progress
-            ydl_opts['postprocessor_hooks'] = [
-                lambda d: self._postprocessor_hook(d, download_item.id)
-            ]
-            
-            # Start download
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # Сохраняем селектор формата для проверки слияния
-                format_selector = ydl_opts.get('format', '')
-                self._current_format_selector = format_selector
-
-                if '+' in format_selector or 'bestvideo' in format_selector:
-                    self.logger.info(f"Format selector '{format_selector}' may require merging")
-
-                ydl.download([download_item.url])
-
-                # После завершения загрузки, показываем индикатор слияния если нужно
-                if '+' in format_selector or 'bestvideo' in format_selector:
-                    # Показываем индикатор слияния
-                    download_item.speed = 'Merging formats...'
-                    download_item.eta = 'Processing'
-                    download_item.progress = 100
-                    self.logger.info(f"Post-download merger indicator for {download_item.title}")
-                    print(f"   🔄 Post-download merging for: {download_item.title}")
-                    self._notify_progress_change(download_item.id)
-
-                    # Небольшая задержка для показа индикатора
-                    import threading
-                    def clear_merger_indicator():
-                        time.sleep(3)
-                        if download_item.status.value != 'completed':
-                            download_item.speed = ''
-                            download_item.eta = ''
-                            self._notify_progress_change(download_item.id)
-
-                    threading.Thread(target=clear_merger_indicator, daemon=True).start()
-
-            # Mark as completed
-            download_item.status = DownloadStatus.COMPLETED
-            download_item.completed_at = time.time()
-            download_item.progress = 100.0
-            download_item.speed = ''
-            download_item.eta = ''
-
-            self.logger.info(f"Download completed: {download_item.title}")
-            self.log_download_event("COMPLETED", download_item.url, download_item.title)
-
-            # Show completion notification
-            if self.notification_manager:
-                self.notification_manager.show_success(
-                    "Download Complete",
-                    f"'{download_item.title}' has been downloaded successfully"
-                )
-
-        except Exception as e:
-            self.logger.error(f"Download failed: {e}")
-            download_item.status = DownloadStatus.FAILED
-            download_item.error_message = str(e)
-
-            self.log_download_event("FAILED", download_item.url, str(e))
-
-            # Handle error with notification system
-            if self.error_handler:
-                self.error_handler.handle_download_error(e, download_item.url, show_user=True)
-
-        finally:
-            # Save to history
+        for browser in cookie_browsers:
             try:
-                self.history_manager.add_download(download_item)
+                # Prepare yt-dlp options with browser-specific cookies
+                ydl_opts = self._prepare_ydl_options(download_item, browser=browser)
+
+                # Add progress hook
+                ydl_opts['progress_hooks'] = [
+                    lambda d: self._progress_hook(d, download_item.id)
+                ]
+
+                # Add postprocessor hook for merger progress
+                ydl_opts['postprocessor_hooks'] = [
+                    lambda d: self._postprocessor_hook(d, download_item.id)
+                ]
+
+                # Start download
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    format_selector = ydl_opts.get('format', '')
+                    self._current_format_selector = format_selector
+
+                    if '+' in format_selector or 'bestvideo' in format_selector:
+                        self.logger.info(f"Format selector '{format_selector}' may require merging")
+
+                    ydl.download([download_item.url])
+
+                    if '+' in format_selector or 'bestvideo' in format_selector:
+                        download_item.speed = 'Merging formats...'
+                        download_item.eta = 'Processing'
+                        download_item.progress = 100
+                        self.logger.info(f"Post-download merger indicator for {download_item.title}")
+                        print(f"   🔄 Post-download merging for: {download_item.title}")
+                        self._notify_progress_change(download_item.id)
+
+                        import threading
+                        def clear_merger_indicator():
+                            time.sleep(3)
+                            if download_item.status.value != 'completed':
+                                download_item.speed = ''
+                                download_item.eta = ''
+                                self._notify_progress_change(download_item.id)
+
+                        threading.Thread(target=clear_merger_indicator, daemon=True).start()
+
+                # Mark as completed
+                download_item.status = DownloadStatus.COMPLETED
+                download_item.completed_at = time.time()
+                download_item.progress = 100.0
+                download_item.speed = ''
+                download_item.eta = ''
+
+                self.logger.info(f"Download completed: {download_item.title}")
+                self.log_download_event("COMPLETED", download_item.url, download_item.title)
+
+                if self.notification_manager:
+                    self.notification_manager.show_success(
+                        "Download Complete",
+                        f"'{download_item.title}' has been downloaded successfully"
+                    )
+
+                success = True
+                break  # Exit browser loop on success
+
             except Exception as e:
-                self.logger.error(f"Failed to save to history: {e}")
+                last_error = e
+                error_msg = str(e).lower()
+                self.logger.warning(f"Download attempt with {browser or 'no cookies'} failed: {e}")
 
-            # Clean up
-            if download_item.id in self.active_downloads:
-                del self.active_downloads[download_item.id]
+                # If auth-related error, try next browser
+                if any(kw in error_msg for kw in ['sign in', 'confirm you', 'bot', 'cookie']):
+                    if browser is not None:
+                        self.logger.info(f"Auth issue with {browser}, trying next browser...")
+                        continue
 
-            self._notify_progress_change(download_item.id)
-            self._process_queue()  # Start next download
+                # Non-auth error or all browsers exhausted
+                break
+
+        if not success:
+            # All attempts failed
+            self.logger.error(f"Download failed: {last_error}")
+            download_item.status = DownloadStatus.FAILED
+            download_item.error_message = str(last_error)
+
+            self.log_download_event("FAILED", download_item.url, str(last_error))
+
+            if self.error_handler:
+                self.error_handler.handle_download_error(last_error, download_item.url, show_user=True)
+
+        # Save to history
+        try:
+            self.history_manager.add_download(download_item)
+        except Exception as e:
+            self.logger.error(f"Failed to save to history: {e}")
+
+        # Clean up
+        if download_item.id in self.active_downloads:
+            del self.active_downloads[download_item.id]
+
+        self._notify_progress_change(download_item.id)
+        self._process_queue()
             
-    def _prepare_ydl_options(self, download_item: DownloadItem) -> Dict:
+    def _prepare_ydl_options(self, download_item: DownloadItem, browser: str = None) -> Dict:
         """Prepare yt-dlp options for download"""
         output_path = Path(download_item.output_path)
 
@@ -513,12 +535,12 @@ class DownloadManager:
                     if height <= 1080:
                         # Medium qualities: strict H.264 + FORCED RUSSIAN AUDIO
                         # CRITICALLY IMPORTANT: Force Russian language in selector
-                        format_id = f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio[language=orig]/bestvideo[height<={height}]+bestaudio/best'
+                        format_id = f'bestvideo[height<={height}][vcodec^=avc1]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio/best'
                         self.logger.info(f"Quality {height}p: H.264 codec + forced Russian audio")
                         print(f"   {height}p -> H.264 codec + FORCED RUSSIAN AUDIO")
                     else:
                         # High qualities: any codec + FORCED RUSSIAN AUDIO
-                        format_id = f'bestvideo[height<={height}]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio[language=orig]/bestvideo[height<={height}]+bestaudio/best'
+                        format_id = f'bestvideo[height<={height}]+bestaudio[language=ru]/bestvideo[height<={height}]+bestaudio/best'
                         self.logger.info(f"Quality {height}p: Any codec + forced Russian audio")
                         print(f"   🖥️ {height}p → Любой кодек + ПРИНУДИТЕЛЬНО РУССКОЕ АУДИО")
                 else:
@@ -532,6 +554,7 @@ class DownloadManager:
         ydl_opts = {
             'outtmpl': str(output_path / '%(title)s.%(ext)s'),
             'format': format_id,
+            'noplaylist': True,
             # Disable additional files - MP4 only!
             'writeinfojson': False,
             'writethumbnail': False,
@@ -620,20 +643,20 @@ class DownloadManager:
 
             self.logger.info(f"Video download configured with format: {format_id}")
 
-        # КРИТИЧЕСКИ ВАЖНО: Добавляем cookies для обхода региональных ограничений
-        # Это помогает получить оригинальную аудиодорожку вместо дублированной
-        cookie_opts = self.cookie_manager.get_cookie_options(download_item.url)
+        # Добавляем cookies для обхода региональных ограничений
+        cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
         if cookie_opts:
             ydl_opts.update(cookie_opts)
-            self.logger.info(f"Using cookies from browser: {cookie_opts.get('cookiesfrombrowser', ['unknown'])[0]}")
-            print(f"   🍪 Используем cookies из браузера для получения оригинальной озвучки")
+            browser_name = cookie_opts.get('cookiesfrombrowser', ['unknown'])[0]
+            self.logger.info(f"Using cookies from browser: {browser_name}")
+            print(f"   🍪 Используем cookies из браузера {browser_name} для получения оригинальной озвучки")
         else:
             self.logger.warning("No cookies available - may get dubbed audio instead of original")
             print(f"   ⚠️  Cookies недоступны - возможна дублированная озвучка вместо оригинальной")
 
         # Финальная диагностика настроек
-        self.logger.info(f"Final yt-dlp options: format='{ydl_opts['format']}', cookies={'yes' if cookie_opts else 'no'}")
-        print(f"   🔧 Финальные настройки: формат='{ydl_opts['format']}', cookies={'да' if cookie_opts else 'нет'}")
+        self.logger.info(f"Final yt-dlp options: format='{ydl_opts['format']}', cookie browser='{browser or 'none'}'")
+        print(f"   🔧 Финальные настройки: формат='{ydl_opts['format']}', cookies={browser or 'нет'}")
 
         return ydl_opts
         

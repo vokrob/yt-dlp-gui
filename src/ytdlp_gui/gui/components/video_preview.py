@@ -253,6 +253,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 'quiet': True,
                 'no_warnings': True,
                 'extract_flat': False,
+                'noplaylist': True,
                 # SETTINGS FOR GETTING ORIGINAL VIDEO VERSION
                 'geo_bypass': False,  # Disable geo-bypass to preserve original audio track
                 'prefer_original_language': True,  # Prefer original language
@@ -286,29 +287,39 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 'call_home': False,
             }
 
-            # Add cookie options if available
-            if self.cookie_manager:
-                cookie_opts = self.cookie_manager.get_cookie_options(url)
-                ydl_opts.update(cookie_opts)
-
-            # Try multiple approaches to get video info
+            # Browser fallback chain: Chrome → Firefox → Edge → no cookies
+            cookie_browsers = ['chrome', 'firefox', 'edge', None]
             info = None
+            last_auth_error = None
 
-            # First attempt: Standard extraction
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-            except Exception as e:
-                error_msg = str(e)
-                self.logger.warning(f"Standard extraction failed: {error_msg}")
+            for browser in cookie_browsers:
+                browser_opts = ydl_opts.copy()
+                if self.cookie_manager:
+                    cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
+                    browser_opts.update(cookie_opts)
 
-                # Check if this is an authentication error
-                if self._is_authentication_error(error_msg, url):
-                    self.after(0, lambda msg=error_msg: self._show_authentication_error(msg, url))
-                    return
+                try:
+                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                    if info:
+                        self.logger.info(f"Standard extraction succeeded with {browser or 'no cookies'}")
+                        break
+                except Exception as e:
+                    error_msg = str(e)
+                    self.logger.warning(f"Standard extraction with {browser or 'no cookies'} failed: {error_msg}")
+                    if self._is_authentication_error(error_msg, url):
+                        last_auth_error = error_msg
+                    continue
+
+            if not info:
+                if last_auth_error:
+                    self.after(0, lambda msg=last_auth_error: self._show_authentication_error(msg, url))
+                else:
+                    self.after(0, lambda: self._show_error("Could not load video information"))
+                return
 
             # Second attempt: If title is generic, try with different options
-            if info and (not info.get('title') or 'youtube video #' in info.get('title', '').lower()):
+            if 'youtube video #' in info.get('title', '').lower():
                 self.logger.info("Got generic title, trying alternative extraction...")
                 try:
                     # Try with different options
@@ -318,6 +329,8 @@ class VideoPreviewFrame(ctk.CTkFrame):
                         'youtube_skip_dash_manifest': True,
                         'extract_flat': True,
                     })
+                    if self.cookie_manager:
+                        alt_opts.update(self.cookie_manager.get_cookie_options(url))
 
                     with yt_dlp.YoutubeDL(alt_opts) as ydl:
                         alt_info = ydl.extract_info(url, download=False)
@@ -327,13 +340,14 @@ class VideoPreviewFrame(ctk.CTkFrame):
                     self.logger.warning(f"Alternative extraction failed: {e}")
 
             # Third attempt: Try with minimal options if still no good title
-            if info and (not info.get('title') or 'youtube video #' in info.get('title', '').lower()):
+            if 'youtube video #' in info.get('title', '').lower():
                 self.logger.info("Still generic title, trying minimal extraction...")
                 try:
                     minimal_opts = {
                         'quiet': True,
                         'no_warnings': True,
                         'extract_flat': False,
+                        'noplaylist': True,
                         'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     }
 

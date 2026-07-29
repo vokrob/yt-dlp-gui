@@ -66,6 +66,7 @@ class FormatDetector:
                 'no_warnings': True,
                 'listformats': False,
                 'extract_flat': False,
+                'noplaylist': True,
                 # SETTINGS FOR GETTING ORIGINAL VIDEO VERSION
                 'geo_bypass': False,  # Disable geo-bypass to preserve original audio track
                 'prefer_original_language': True,  # Prefer original language
@@ -83,17 +84,22 @@ class FormatDetector:
                 }
             }
 
-            # Add cookie options if available
-            if self.cookie_manager:
-                cookie_opts = self.cookie_manager.get_cookie_options(url)
-                ydl_opts.update(cookie_opts)
+            # Try with multiple browsers for cookies, then fall back to no cookies
+            info = None
+            for browser in ['chrome', 'firefox', 'edge', None]:
+                browser_opts = ydl_opts.copy()
+                if self.cookie_manager:
+                    cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
+                    browser_opts.update(cookie_opts)
+                try:
+                    with yt_dlp.YoutubeDL(browser_opts) as ydl:
+                        info = ydl.extract_info(url, download=False)
+                    if info:
+                        break
+                except Exception:
+                    continue
             
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                
-                if not info:
-                    return [], [], {}
-                    
+            if info:
                 formats = info.get('formats', [])
                 
                 # Separate video and audio formats
@@ -129,6 +135,8 @@ class FormatDetector:
                 }
                 
                 return video_formats, audio_formats, video_info
+
+            return [], [], {}
                 
         except Exception as e:
             self.logger.error(f"Failed to get formats for {url}: {e}")
