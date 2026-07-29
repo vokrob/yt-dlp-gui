@@ -505,8 +505,6 @@ class DownloadManager:
             sort_args = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'ext:mp4', 'size']
             extra_args.append('--format-sort')
             extra_args.append(','.join(sort_args))
-            extra_args.append('--prefer-free-formats')
-            extra_args.append('false')
 
             if height_match:
                 height = int(height_match.group(1))

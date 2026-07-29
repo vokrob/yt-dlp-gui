@@ -87,7 +87,7 @@ def update_ytdlp() -> None:
         if not exe.exists():
             return
         result = subprocess.run(
-            [str(exe), '--update', '--no-restart'],
+            [str(exe), '--update'],
             capture_output=True, text=True, timeout=60
         )
         if result.returncode == 0:
