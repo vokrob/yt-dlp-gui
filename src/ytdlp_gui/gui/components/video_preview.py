@@ -18,7 +18,7 @@ import re
 import json
 from typing import Dict, Optional, Callable
 
-from ytdlp_gui.core.cookie_manager import CookieManager, cookie_opts_to_cli
+from ytdlp_gui.core.cookie_manager import CookieManager
 from ytdlp_gui.core import ytdlp_wrapper
 
 class VideoPreviewFrame(ctk.CTkFrame):
@@ -251,48 +251,17 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _fetch_video_info(self, url: str):
         """Fetch video information using yt-dlp (runs in separate thread)"""
         try:
-            is_youtube = 'youtube.com' in url or 'youtu.be' in url
-
             base_args = [
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                '--referer', 'https://www.youtube.com/',
-                '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                '--add-header', 'Accept-Encoding: gzip, deflate, br',
-                '--add-header', 'DNT: 1',
-                '--add-header', 'Connection: keep-alive',
-                '--add-header', 'Upgrade-Insecure-Requests: 1',
-                '--add-header', 'Sec-Fetch-Dest: document',
-                '--add-header', 'Sec-Fetch-Mode: navigate',
-                '--add-header', 'Sec-Fetch-Site: none',
-                '--add-header', 'Sec-Fetch-User: ?1',
-                '--add-header', 'Cache-Control: max-age=0',
             ]
-            if is_youtube:
-                base_args.extend([
-                    '--extractor-args', 'youtube:player_client=android,web,ios',
-                    '--throttled-rate', '100K',
-                ])
+            # Try once with ONLY cookies.txt if exists (no browser cookie extraction)
+            extra = list(base_args)
+            if self.cookie_manager:
+                cookie_files = self.cookie_manager._get_cookie_file_paths()
+                if cookie_files:
+                    extra.extend(['--cookies', str(cookie_files[0])])
 
-            cookie_browsers = ['chrome', 'firefox', 'edge', None]
-            info = None
-            last_auth_error = None
-
-            for browser in cookie_browsers:
-                extra = list(base_args)
-                if self.cookie_manager and browser is not None:
-                    cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
-                    extra.extend(cookie_opts_to_cli(cookie_opts))
-                try:
-                    info = ytdlp_wrapper.extract_info(url, extra_args=extra)
-                    if info:
-                        self.logger.info(f"Standard extraction succeeded with {browser or 'no cookies'}")
-                        break
-                except Exception as e:
-                    error_msg = str(e)
-                    self.logger.warning(f"Standard extraction with {browser or 'no cookies'} failed: {error_msg}")
-                    if self._is_authentication_error(error_msg, url):
-                        last_auth_error = error_msg
-                    continue
+            info = ytdlp_wrapper.extract_info(url, extra_args=extra)
 
             if not info:
                 real_error = ytdlp_wrapper.get_last_error()
@@ -301,37 +270,9 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 elif real_error:
                     user_msg = self._format_user_error(real_error, url)
                     self.after(0, lambda m=user_msg: self._show_error(m))
-                elif last_auth_error:
-                    self.after(0, lambda msg=last_auth_error: self._show_authentication_error(msg, url))
                 else:
                     self.after(0, lambda: self._show_error("Could not load video information"))
                 return
-
-            # Second attempt: If title is generic, try with different options
-            if 'youtube video #' in info.get('title', '').lower():
-                self.logger.info("Got generic title, trying alternative extraction...")
-                try:
-                    alt_args = list(base_args)
-                    if self.cookie_manager:
-                        cookie_opts = self.cookie_manager.get_cookie_options(url)
-                        alt_args.extend(cookie_opts_to_cli(cookie_opts))
-                    alt_info = ytdlp_wrapper.extract_info(url, extra_args=alt_args)
-                    if alt_info and alt_info.get('title') and 'youtube video #' not in alt_info.get('title', '').lower():
-                        info = alt_info
-                except Exception as e:
-                    self.logger.warning(f"Alternative extraction failed: {e}")
-
-            # Third attempt: Try with minimal options if still no good title
-            if 'youtube video #' in info.get('title', '').lower():
-                self.logger.info("Still generic title, trying minimal extraction...")
-                try:
-                    min_info = ytdlp_wrapper.extract_info(url, extra_args=[
-                        '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    ])
-                    if min_info and min_info.get('title') and 'youtube video #' not in min_info.get('title', '').lower():
-                        info = min_info
-                except Exception as e:
-                    self.logger.warning(f"Minimal extraction failed: {e}")
 
             if info:
                 title = info.get('title', 'Unknown Title')

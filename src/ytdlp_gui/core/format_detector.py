@@ -9,7 +9,7 @@ import logging
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
-from .cookie_manager import CookieManager, cookie_opts_to_cli
+from .cookie_manager import CookieManager
 from . import ytdlp_wrapper
 
 @dataclass
@@ -61,34 +61,16 @@ class FormatDetector:
         Returns: (video_formats, audio_formats, video_info)
         """
         try:
-            is_youtube = 'youtube.com' in url or 'youtu.be' in url
-
             base_args = [
-                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                '--add-header', 'Accept-Encoding: gzip, deflate',
-                '--add-header', 'DNT: 1',
-                '--add-header', 'Connection: keep-alive',
-                '--add-header', 'Upgrade-Insecure-Requests: 1',
+                '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             ]
-            if is_youtube:
-                base_args.extend([
-                    '--extractor-args', 'youtube:player_client=android,web,ios',
-                    '--throttled-rate', '100K',
-                ])
+            extra = list(base_args)
+            if self.cookie_manager:
+                cookie_files = self.cookie_manager._get_cookie_file_paths()
+                if cookie_files:
+                    extra.extend(['--cookies', str(cookie_files[0])])
 
-            info = None
-            for browser in ['chrome', 'firefox', 'edge', None]:
-                extra = list(base_args)
-                if self.cookie_manager and browser is not None:
-                    cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
-                    extra.extend(cookie_opts_to_cli(cookie_opts))
-                try:
-                    info = ytdlp_wrapper.extract_info(url, extra_args=extra)
-                    if info:
-                        break
-                except Exception:
-                    continue
+            info = ytdlp_wrapper.extract_info(url, extra_args=extra)
             
             if info:
                 formats = info.get('formats', [])
