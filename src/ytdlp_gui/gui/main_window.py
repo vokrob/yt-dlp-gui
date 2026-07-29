@@ -10,11 +10,13 @@ import tkinter as tk
 from tkinter import messagebox
 import threading
 import logging
+import tempfile
 from pathlib import Path
 import time
 
 from ytdlp_gui.core.download_manager import DownloadManager
 from ytdlp_gui.core.settings_manager import SettingsManager
+from ytdlp_gui.core.update_checker import UpdateChecker
 from ytdlp_gui.gui.components.url_input import URLInputFrame
 from ytdlp_gui.gui.components.format_selector import FormatSelectorFrame
 from ytdlp_gui.gui.components.output_selector import OutputSelectorFrame
@@ -23,6 +25,7 @@ from ytdlp_gui.gui.components.download_queue import DownloadQueueFrame
 from ytdlp_gui.gui.components.simple_url_input import SimpleURLInputFrame
 from ytdlp_gui.gui.components.video_preview import VideoPreviewFrame
 from ytdlp_gui.gui.components.download_options import DownloadOptionsFrame
+from ytdlp_gui.gui.components.update_banner import UpdateBanner
 from ytdlp_gui.utils.notifications import init_notifications, get_notification_manager, get_error_handler
 from ytdlp_gui.utils.logger import init_logging, get_logger
 
@@ -45,6 +48,9 @@ class YTDLPGUIApp:
         self.startup_time = time.time()
         self.startup_grace_period = 3.0
         self.startup_failed_ids = set()
+
+        self.update_checker = UpdateChecker()
+        self._update_info = None
 
         # UI state
         self.current_state = "url_input"
@@ -77,18 +83,93 @@ class YTDLPGUIApp:
         self.notification_manager.enable_notifications(notifications_enabled)
 
         self._mark_existing_failed_downloads()
-        
+        self._check_updates()
+
+    def _check_updates(self):
+        """Check for updates in background thread"""
+        def _check():
+            try:
+                self._update_info = self.update_checker.check()
+                if self._update_info and self._update_info.get("available"):
+                    self.logger.info(
+                        f"Update available: v{self._update_info['latest_version']}"
+                    )
+                    self.root.after(
+                        0,
+                        lambda: self.update_banner.show(
+                            self._update_info["latest_version"]
+                        )
+                    )
+            except Exception as e:
+                self.logger.warning(f"Update check failed: {e}")
+
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _on_update_download(self):
+        """Handle update button click - download and apply update"""
+        if not self._update_info or not self._update_info.get("download_url"):
+            return
+
+        def _do_update():
+            try:
+                dest_dir = tempfile.mkdtemp(prefix="ytdlp-gui-update-")
+
+                def progress_callback(p):
+                    self.root.after(0, lambda: self.update_banner.set_progress(p))
+
+                exe_path = self.update_checker.download_update(
+                    self._update_info["download_url"],
+                    dest_dir,
+                    progress_callback=progress_callback
+                )
+
+                if exe_path:
+                    self.root.after(0, self.update_banner.show_applying)
+                    self.update_checker.apply_update(exe_path)
+                    self.root.after(1500, self._exit_for_update)
+                else:
+                    self.root.after(
+                        0,
+                        lambda: self.update_banner.show_error("Download failed")
+                    )
+
+            except Exception as e:
+                self.logger.error(f"Update failed: {e}")
+                self.root.after(
+                    0,
+                    lambda: self.update_banner.show_error(str(e))
+                )
+
+        self.update_banner.show_downloading()
+        threading.Thread(target=_do_update, daemon=False).start()
+
+    def _exit_for_update(self):
+        """Exit the app so updater script can replace the exe"""
+        try:
+            self.download_manager.stop_all_downloads()
+            self.settings_manager.save_settings()
+        except Exception as e:
+            self.logger.error(f"Error during exit for update: {e}")
+        self.root.destroy()
+
     def setup_ui(self):
         """Setup UI"""
         self.root.grid_columnconfigure(0, weight=1)
-        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight=0)
+        self.root.grid_rowconfigure(1, weight=1)
         self.create_all_components()
         self.show_url_input_state()
 
     def create_all_components(self):
         """Create UI components"""
+        self.update_banner = UpdateBanner(
+            self.root,
+            on_update=self._on_update_download,
+            on_dismiss=lambda: self.update_banner.hide()
+        )
+
         self.main_frame = ctk.CTkFrame(self.root)
-        self.main_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.main_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         self.main_frame.grid_columnconfigure(0, weight=1)
         self.main_frame.grid_rowconfigure(0, weight=1)
 

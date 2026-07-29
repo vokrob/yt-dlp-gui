@@ -15,7 +15,7 @@ from pathlib import Path
 
 # Application information
 APP_NAME = "yt-dlp-gui"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_DESCRIPTION = "Modern GUI for yt-dlp - Video & Audio Downloader"
 
 # Build configuration
@@ -181,7 +181,10 @@ def create_pyinstaller_spec():
         "threading",
         "queue",
         "logging.handlers",
-        "psutil"
+        "psutil",
+        "packaging",
+        "packaging.version",
+        "requests",
     ]
     
     # Binary files to bundle (inside the exe)
