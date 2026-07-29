@@ -82,21 +82,39 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
     return True
 
 
+YTDLP_NIGHTLY_URL = "https://github.com/yt-dlp/yt-dlp/releases/download/nightly/yt-dlp.exe"
+
+
 def update_ytdlp() -> None:
+    """Download the latest yt-dlp nightly build from GitHub."""
     try:
         exe = get_bin_dir() / 'yt-dlp.exe'
         if not exe.exists():
             return
-        flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
-        result = subprocess.run(
-            [str(exe), '--update'],
-            capture_output=True, text=True, timeout=60,
-            creationflags=flags
-        )
-        if result.returncode == 0:
-            msg = result.stdout.strip() or result.stderr.strip() or "updated"
-            logger.info("yt-dlp auto-update: %s", msg)
-        else:
-            logger.warning("yt-dlp auto-update failed: %s", result.stderr.strip()[:200])
+
+        # Always try to download the latest nightly/master build
+        tmp = exe.with_suffix('.exe.tmp')
+        logger.info("Downloading latest yt-dlp nightly build...")
+        try:
+            urllib.request.urlretrieve(YTDLP_NIGHTLY_URL, tmp)
+            tmp.replace(exe)
+            logger.info("yt-dlp updated to latest nightly build")
+            # Clean up ffmpeg zip if present
+            zip_path = get_bin_dir() / 'ffmpeg.zip'
+            if zip_path.exists():
+                zip_path.unlink()
+        except Exception as e:
+            logger.warning("Nightly download failed, trying --update-to master: %s", e)
+            flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
+            result = subprocess.run(
+                [str(exe), '--update-to', 'yt-dlp/yt-dlp@master'],
+                capture_output=True, text=True, timeout=60,
+                creationflags=flags
+            )
+            if result.returncode == 0:
+                msg = result.stdout.strip() or result.stderr.strip() or "updated via master"
+                logger.info("yt-dlp auto-update: %s", msg)
+            else:
+                logger.warning("yt-dlp master update failed: %s", result.stderr.strip()[:200])
     except Exception as e:
-        logger.debug("yt-dlp auto-update skipped: %s", e)
+        logger.debug("yt-dlp update skipped: %s", e)

@@ -72,7 +72,10 @@ class FormatDetector:
                 '--add-header', 'Upgrade-Insecure-Requests: 1',
             ]
             if is_youtube:
-                base_args.extend(['--extractor-args', 'youtube:player_client=android'])
+                base_args.extend([
+                    '--extractor-args', 'youtube:player_client=android,web,ios',
+                    '--throttled-rate', '100K',
+                ])
 
             info = None
             for browser in ['chrome', 'firefox', 'edge', None]:

@@ -268,7 +268,10 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 '--add-header', 'Cache-Control: max-age=0',
             ]
             if is_youtube:
-                base_args.extend(['--extractor-args', 'youtube:player_client=android'])
+                base_args.extend([
+                    '--extractor-args', 'youtube:player_client=android,web,ios',
+                    '--throttled-rate', '100K',
+                ])
 
             cookie_browsers = ['chrome', 'firefox', 'edge', None]
             info = None
@@ -296,7 +299,8 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 if real_error and self._is_authentication_error(real_error, url):
                     self.after(0, lambda msg=real_error: self._show_authentication_error(msg, url))
                 elif real_error:
-                    self.after(0, lambda m=real_error: self._show_error(m))
+                    user_msg = self._format_user_error(real_error, url)
+                    self.after(0, lambda m=user_msg: self._show_error(m))
                 elif last_auth_error:
                     self.after(0, lambda msg=last_auth_error: self._show_authentication_error(msg, url))
                 else:
@@ -364,7 +368,10 @@ class VideoPreviewFrame(ctk.CTkFrame):
                     self.after(0, self._finalize_loading)
             else:
                 real_error = ytdlp_wrapper.get_last_error()
-                display_msg = real_error if real_error else "Could not load video information"
+                if real_error:
+                    display_msg = self._format_user_error(real_error, url)
+                else:
+                    display_msg = "Could not load video information"
                 self.after(0, lambda m=display_msg: self._show_error(m))
 
         except Exception as e:
@@ -474,11 +481,56 @@ class VideoPreviewFrame(ctk.CTkFrame):
             msg = msg[:idx].rstrip(',; ')
         return msg.strip()
 
+    @staticmethod
+    def _format_user_error(ytdlp_error: str, url: str) -> str:
+        """Convert known yt-dlp errors to user-friendly messages."""
+        clean = VideoPreviewFrame._clean_error_message(ytdlp_error)
+        lower = clean.lower()
+
+        messages = {
+            "failed to extract any player response": (
+                "YouTube изменил свои API. Функция извлечения временно недоступна.\n\n"
+                "Подождите обновления yt-dlp или попробуйте другой формат."
+            ),
+            "video unavailable": (
+                "Видео недоступно. Оно может быть:\n"
+                "- удалено автором или YouTube\n"
+                "- приватным\n"
+                "- заблокировано в вашем регионе"
+            ),
+            "incomplete youtube id": (
+                "Некорректная ссылка на видео. Проверьте правильность URL."
+            ),
+            "sign in to confirm": (
+                "Для просмотра этого видео требуется вход в аккаунт.\n\n"
+                "Войдите в YouTube в браузере и включите куки в настройках."
+            ),
+            "this video is only available for registered users": (
+                "Видео доступно только зарегистрированным пользователям."
+            ),
+            "age": (
+                "Видео имеет возрастное ограничение.\n\n"
+                "Войдите в аккаунт YouTube в браузере и включите куки."
+            ),
+            "http error 404": (
+                "Видео не найдено (404). Возможно, оно было удалено."
+            ),
+            "http error 403": (
+                "Доступ к видео запрещён (403).\n"
+                "Проверьте VPN или попробуйте позже."
+            ),
+        }
+
+        for keyword, msg in messages.items():
+            if keyword in lower:
+                return msg
+
+        return clean
+
     def _show_error(self, message: str):
         """Show error message"""
         self.title_label.configure(text="Error loading video")
         self.channel_label.configure(text="")
-        message = self._clean_error_message(message)
         if len(message) > 400:
             message = message[:397] + "..."
         self.thumbnail_label.configure(text=message, wraplength=700)
