@@ -56,6 +56,11 @@ def _ffmpeg_args() -> List[str]:
     return ['--ffmpeg-location', loc] if loc else []
 
 
+def _cmd_str(cmd: List[str]) -> str:
+    """Format command list as a shell command string for logging."""
+    return ' '.join(f'"{c}"' if ' ' in c else c for c in cmd)
+
+
 def extract_info(url: str, extra_args: List[str] = None, timeout: int = 30) -> Optional[dict]:
     """Run yt-dlp --dump-json and return parsed info. Returns None on failure."""
     cmd = [find_ytdlp(), '--dump-json', '--no-playlist', '--no-warnings', '--quiet',
@@ -64,6 +69,8 @@ def extract_info(url: str, extra_args: List[str] = None, timeout: int = 30) -> O
     if extra_args:
         cmd.extend(extra_args)
     cmd.append(url)
+
+    logger.debug(f"Running: {_cmd_str(cmd)}")
 
     flags = _create_no_window_flag()
 
@@ -74,6 +81,7 @@ def extract_info(url: str, extra_args: List[str] = None, timeout: int = 30) -> O
             msg = result.stderr[:500].strip()
             _set_last_error(msg)
             logger.warning(f"yt-dlp extract_info failed: {msg}")
+            logger.debug(f"Full stderr: {result.stderr[:1000]}")
             return None
         _set_last_error('')
         return json.loads(result.stdout) if result.stdout.strip() else None
@@ -147,6 +155,7 @@ def download(url: str, output_path: str, format_spec: str,
         cmd.extend(extra_args)
     cmd.append(url)
 
+    logger.debug(f"Download command: {_cmd_str(cmd)}")
     flags = _create_no_window_flag()
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,

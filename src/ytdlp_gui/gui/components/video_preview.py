@@ -279,7 +279,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
 
             for browser in cookie_browsers:
                 extra = list(base_args)
-                if self.cookie_manager:
+                if self.cookie_manager and browser is not None:
                     cookie_opts = self.cookie_manager.get_cookie_options(url, browser=browser)
                     extra.extend(cookie_opts_to_cli(cookie_opts))
                 try:
