@@ -84,12 +84,6 @@ class YTDLPGUIApp:
 
         self._mark_existing_failed_downloads()
         self._check_updates()
-        self._auto_update_ytdlp()
-
-    def _auto_update_ytdlp(self):
-        """Auto-update yt-dlp.exe silently in background."""
-        from ytdlp_gui.core.binary_manager import update_ytdlp
-        threading.Thread(target=update_ytdlp, daemon=True).start()
 
     def _check_updates(self):
         """Check for updates in background thread"""

@@ -61,6 +61,8 @@ class FormatDetector:
         Returns: (video_formats, audio_formats, video_info)
         """
         try:
+            is_youtube = 'youtube.com' in url or 'youtu.be' in url
+
             base_args = [
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 '--add-header', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -69,6 +71,8 @@ class FormatDetector:
                 '--add-header', 'Connection: keep-alive',
                 '--add-header', 'Upgrade-Insecure-Requests: 1',
             ]
+            if is_youtube:
+                base_args.extend(['--extractor-args', 'youtube:player_client=android'])
 
             info = None
             for browser in ['chrome', 'firefox', 'edge', None]:

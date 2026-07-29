@@ -251,6 +251,8 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _fetch_video_info(self, url: str):
         """Fetch video information using yt-dlp (runs in separate thread)"""
         try:
+            is_youtube = 'youtube.com' in url or 'youtu.be' in url
+
             base_args = [
                 '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 '--referer', 'https://www.youtube.com/',
@@ -265,6 +267,8 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 '--add-header', 'Sec-Fetch-User: ?1',
                 '--add-header', 'Cache-Control: max-age=0',
             ]
+            if is_youtube:
+                base_args.extend(['--extractor-args', 'youtube:player_client=android'])
 
             cookie_browsers = ['chrome', 'firefox', 'edge', None]
             info = None
