@@ -29,7 +29,8 @@ from ytdlp_gui.utils.notifications import init_notifications, get_notification_m
 from ytdlp_gui.utils.logger import init_logging, get_logger
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+theme_path = Path(__file__).parent.parent / "assets" / "themes" / "youtube_dark.json"
+ctk.set_default_color_theme(str(theme_path))
 
 class YTDLPGUIApp:
     """Main app class"""
@@ -135,7 +136,7 @@ class YTDLPGUIApp:
                         0,
                         lambda: self.update_btn.configure(
                             text="Update Failed",
-                            fg_color="#8b0000",
+                            fg_color="#F1F1F1",
                             state="normal"
                         )
                     )
@@ -146,7 +147,7 @@ class YTDLPGUIApp:
                     0,
                     lambda: self.update_btn.configure(
                         text="Update Failed",
-                        fg_color="#8b0000",
+                        fg_color="#F1F1F1",
                         state="normal"
                     )
                 )
@@ -157,7 +158,7 @@ class YTDLPGUIApp:
         """Show update button in top-right corner"""
         self.update_btn.configure(
             text="Update",
-            fg_color="#2d7a2d",
+            fg_color="#F1F1F1",
             state="normal"
         )
         self.update_btn.grid(row=0, column=0, sticky="e", padx=(0, 15), pady=(8, 0))
@@ -187,11 +188,10 @@ class YTDLPGUIApp:
             width=90,
             height=28,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#2d7a2d",
-            hover_color="#1a5c1a",
-            text_color="white",
-            command=self._on_update_download,
-            corner_radius=4
+            fg_color="#F1F1F1",
+            hover_color="#D0D0D0",
+            text_color="#0F0F0F",
+            command=self._on_update_download
         )
 
         self.main_frame = ctk.CTkFrame(self.root)

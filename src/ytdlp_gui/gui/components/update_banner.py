@@ -16,7 +16,7 @@ class UpdateBanner(ctk.CTkFrame):
         on_update: Optional[Callable] = None,
         on_dismiss: Optional[Callable] = None
     ):
-        super().__init__(parent, fg_color="#2d7a2d", corner_radius=0)
+        super().__init__(parent, fg_color="#333333", corner_radius=0)
         self.logger = logging.getLogger(__name__)
         self.on_update = on_update
         self.on_dismiss = on_dismiss
@@ -42,9 +42,9 @@ class UpdateBanner(ctk.CTkFrame):
             width=150,
             height=30,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#1a5c1a",
-            hover_color="#0f4a0f",
-            text_color="white",
+            fg_color="#F1F1F1",
+            hover_color="#D0D0D0",
+            text_color="#0F0F0F",
             command=self._on_update_click
         )
 
@@ -54,9 +54,9 @@ class UpdateBanner(ctk.CTkFrame):
             width=70,
             height=30,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent",
-            hover_color="#1a5c1a",
-            text_color="white",
+            fg_color="#F1F1F1",
+            hover_color="#D0D0D0",
+            text_color="#0F0F0F",
             command=self._on_dismiss_click
         )
 

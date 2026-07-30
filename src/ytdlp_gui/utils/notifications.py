@@ -128,15 +128,8 @@ class ToastNotification(ctk.CTkToplevel):
         
     def setup_ui(self, title: str, message: str):
         """Set up the toast UI"""
-        # Color scheme based on notification type
-        colors = {
-            NotificationType.INFO: ("#1f538d", "#ffffff"),
-            NotificationType.SUCCESS: ("#28a745", "#ffffff"),
-            NotificationType.WARNING: ("#fd7e14", "#ffffff"),
-            NotificationType.ERROR: ("#dc3545", "#ffffff"),
-        }
-        
-        bg_color, text_color = colors.get(self.notification_type, ("#1f538d", "#ffffff"))
+        bg_color = "#272727"
+        text_color = "#ffffff"
         
         # Main frame
         main_frame = ctk.CTkFrame(self, fg_color=bg_color, corner_radius=10)
@@ -192,8 +185,8 @@ class ToastNotification(ctk.CTkToplevel):
             height=20,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color="transparent",
-            text_color=text_color,
-            hover_color=bg_color,
+            text_color="#ffffff",
+            hover_color="#3a3a3a",
             command=self.close_notification
         )
         close_btn.grid(row=0, column=2, sticky="ne")
