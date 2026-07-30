@@ -471,6 +471,11 @@ class DownloadManager:
             download_item.speed = progress.get('speed', '')
             download_item.eta = progress.get('eta', '')
 
+            total_bytes = progress.get('total_bytes', 0)
+            if total_bytes > 0:
+                download_item.total_bytes = total_bytes
+                download_item.downloaded_bytes = int(total_bytes * percent / 100)
+
             if 'error' in progress:
                 download_item.status = DownloadStatus.FAILED
                 download_item.error_message = progress['error']
@@ -527,138 +532,6 @@ class DownloadManager:
             extra_args.extend(cookie_opts_to_cli(cookie_opts))
 
         return extra_args, format_id, output_template
-        
-    def _progress_hook(self, d: Dict, download_id: str):
-        """Handle download progress updates"""
-        try:
-            download_item = self.get_download_item(download_id)
-            if not download_item:
-                return
-
-            # Log all statuses for debugging
-            self.logger.debug(f"Progress hook: status={d.get('status')}, data={d}")
-
-            if d['status'] == 'downloading':
-                # Update progress information
-                if 'total_bytes' in d:
-                    download_item.total_bytes = d['total_bytes']
-                    download_item.downloaded_bytes = d.get('downloaded_bytes', 0)
-                    download_item.progress = (download_item.downloaded_bytes / download_item.total_bytes) * 100
-
-                # Clean up speed and ETA strings from yt-dlp formatting
-                raw_speed = d.get('_speed_str', '')
-                raw_eta = d.get('_eta_str', '')
-
-                # Remove brackets and other formatting characters
-                download_item.speed = self._clean_display_string(raw_speed)
-                download_item.eta = self._clean_display_string(raw_eta)
-
-                self._notify_progress_change(download_id)
-
-            elif d['status'] == 'finished':
-                # Download finished, check if merging is needed
-                download_item.progress = 100
-
-                # Check if format merging is required
-                format_info = getattr(download_item, 'format_info', {})
-                needs_merging = False
-
-                # Check by format selector
-                if hasattr(self, '_current_format_selector'):
-                    needs_merging = '+' in self._current_format_selector
-
-                # Check by quality (high qualities usually need merging)
-                quality = format_info.get('quality', '')
-                if quality in ['720p', '1080p', '1440p', '2160p', '4K']:
-                    needs_merging = True
-
-                # Check by filename
-                filename = d.get('filename', '')
-                if filename and any(ext in filename for ext in ['.f', '.temp', '.part']):
-                    needs_merging = True
-
-                if needs_merging:
-                    download_item.speed = 'Merging formats...'
-                    download_item.eta = 'Processing'
-                    self.logger.info(f"Format merging detected for {download_item.title}")
-                    print(f"   Merging formats for: {download_item.title}")
-                else:
-                    download_item.speed = 'Finishing...'
-                    download_item.eta = 'Almost done'
-
-                self._notify_progress_change(download_id)
-
-            elif d['status'] == 'processing':
-                # Postprocessing (merging formats)
-                download_item.speed = ' Merging formats...'
-                download_item.eta = 'Processing'
-                download_item.progress = 100
-                self.logger.info(f"Postprocessing started for {download_item.title}")
-                self._notify_progress_change(download_id)
-
-        except Exception as e:
-            self.logger.error(f"Progress hook error: {e}")
-
-    def _clean_display_string(self, text: str) -> str:
-        """Clean display strings from yt-dlp formatting"""
-        if not text:
-            return ""
-
-        import re
-
-        # Remove ANSI escape sequences
-        text = re.sub(r'\x1b\[[0-9;]*m', '', text)
-
-        # Remove color codes in brackets like [32m, [31;1m, [0m
-        text = re.sub(r'\[\d+(?:;\d+)*m', '', text)
-
-        # Remove percentage indicators in brackets like [90%]
-        text = re.sub(r'\[\d+%\]', '', text)
-
-        # Remove [download] prefix
-        text = re.sub(r'\[download\]\s*', '', text)
-
-        # Remove extra whitespace
-        text = ' '.join(text.split())
-
-        return text.strip()
-
-    def _postprocessor_hook(self, d: Dict, download_id: str):
-        """Handle postprocessor progress updates"""
-        try:
-            download_item = self.get_download_item(download_id)
-            if not download_item:
-                return
-
-            # Log all postprocessor events
-            self.logger.info(f"Postprocessor hook: status={d.get('status')}, postprocessor={d.get('postprocessor')}, data={d}")
-            print(f"Postprocessor: {d.get('status')} - {d.get('postprocessor', 'Unknown')}")
-
-            if d['status'] == 'started':
-                # Postprocessing started
-                download_item.speed = ' Merging formats...'
-                download_item.eta = 'Processing'
-                self.logger.info(f"Postprocessing started for {download_item.title}")
-                print(f"    Started merging for: {download_item.title}")
-                self._notify_progress_change(download_id)
-
-            elif d['status'] == 'processing':
-                # Postprocessing in progress
-                download_item.speed = 'Merging formats...'
-                download_item.eta = 'Processing'
-                self._notify_progress_change(download_id)
-
-            elif d['status'] == 'finished':
-                # Postprocessing finished
-                download_item.speed = ''
-                download_item.eta = ''
-                self.logger.info(f"Postprocessing finished for {download_item.title}")
-                print(f"   Finished merging for: {download_item.title}")
-                self._notify_progress_change(download_id)
-
-        except Exception as e:
-            self.logger.error(f"Postprocessor hook error: {e}")
-            print(f"Postprocessor hook error: {e}")
 
     def _cancel_download(self, download_id: str):
         """Cancel an active download"""

@@ -128,15 +128,52 @@ def get_playlist_info(url: str, extra_args: List[str] = None) -> dict:
     return {}
 
 
-_PROGRESS_RE = re.compile(r'\[download\]\s+([\d.]+)%')
+_PROGRESS_RE = re.compile(
+    r'\[download\]\s+(\d+(?:\.\d+)?)%'                       # 1: percent
+    r'(?:\s+of\s+~?\s*(\d+(?:\.\d+)?\s*[KMGTP]?i?B))?'      # 2: total size (optional)
+    r'(?:\s+at\s+([\d.]+\s*[KMGTP]?i?B/s))?'                 # 3: speed (optional)
+    r'(?:\s+ETA\s+(\S+))?'                                    # 4: ETA (optional)
+)
+
+_SIZE_UNITS = {
+    'B': 1, 'KiB': 1024, 'MiB': 1024**2, 'GiB': 1024**3, 'TiB': 1024**4,
+    'KB': 1000, 'MB': 1000**2, 'GB': 1000**3, 'TB': 1000**4,
+}
+
+
+def _parse_size_to_bytes(size_str: str) -> int:
+    """Parse a size string like '15.8MiB' to bytes."""
+    if not size_str:
+        return 0
+    m = re.match(r'([\d.]+)\s*([KMGTP]?i?B)', size_str.strip())
+    if not m:
+        return 0
+    value = float(m.group(1))
+    unit = m.group(2)
+    return int(value * _SIZE_UNITS.get(unit, 1))
 
 
 def _parse_progress(line: str) -> Optional[dict]:
     """Parse yt-dlp progress line. Returns None if no progress found."""
     m = _PROGRESS_RE.search(line)
-    if m:
-        return {'percent': float(m.group(1)), 'speed': '', 'eta': ''}
-    return None
+    if not m:
+        return None
+
+    result = {'percent': float(m.group(1)), 'speed': '', 'eta': ''}
+
+    total_size_str = m.group(2)
+    if total_size_str:
+        result['total_bytes'] = _parse_size_to_bytes(total_size_str)
+
+    speed = m.group(3)
+    if speed:
+        result['speed'] = speed
+
+    eta = m.group(4)
+    if eta:
+        result['eta'] = eta
+
+    return result
 
 
 def download(url: str, output_path: str, format_spec: str,
