@@ -2,19 +2,11 @@
 .SYNOPSIS
     Bump version, commit, tag and push to trigger GitHub release
 .DESCRIPTION
-    Usage: .\release.ps1 <patch|minor|major>
-
-    Examples:
-    .\release.ps1 patch   # 1.1.0 -> 1.1.1
-    .\release.ps1 minor   # 1.1.0 -> 1.2.0
-    .\release.ps1 major   # 1.1.0 -> 2.0.0
+    Usage: .\release.ps1
+    Increments version: 1 -> 2 -> 3 ...
 #>
 
-param(
-    [Parameter(Mandatory)]
-    [ValidateSet('patch', 'minor', 'major')]
-    [string]$Bump
-)
+param()
 
 $ErrorActionPreference = 'Stop'
 
@@ -28,16 +20,6 @@ function Get-CurrentVersion {
     throw "Could not parse version from __init__.py"
 }
 
-function Split-SemVer {
-    param([string]$v)
-    $parts = $v.Split('.')
-    return @{
-        major = [int]$parts[0]
-        minor = [int]$parts[1]
-        patch = [int]$parts[2]
-    }
-}
-
 function Update-File {
     param([string]$Path, [string]$Pattern, [string]$NewValue)
     $content = Get-Content -LiteralPath $Path -Raw
@@ -49,18 +31,10 @@ function Update-File {
 # --- main ---
 $root = $PSScriptRoot
 $current = Get-CurrentVersion
-$parts = Split-SemVer $current
-
-switch ($Bump) {
-    'patch' { $parts.patch += 1 }
-    'minor' { $parts.minor += 1; $parts.patch = 0 }
-    'major' { $parts.major += 1; $parts.minor = 0; $parts.patch = 0 }
-}
-
-$new = "$($parts.major).$($parts.minor).$($parts.patch)"
+$new = [int]$current + 1
 $tag = "v$new"
 
-Write-Host "`nRelease $current -> $new ($Bump)" -ForegroundColor Cyan
+Write-Host "`nRelease $current -> $new" -ForegroundColor Cyan
 Write-Host "Tag: $tag`n" -ForegroundColor Cyan
 
 # 1. Update version in __init__.py
