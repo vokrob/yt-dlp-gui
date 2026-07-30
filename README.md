@@ -1,5 +1,7 @@
-<img src="logo.png" width="48" height="48" align="left" style="margin-right: 12px"/>
-<h1>yt-dlp GUI</h1>
+<h1>
+  <img src="logo.png" width="48" height="48" style="vertical-align: middle; margin-right: 8px;" />
+  yt-dlp GUI
+</h1>
 
 ## Description
 
