@@ -68,6 +68,7 @@ class YTDLPGUIApp:
 
         # Override CTk default icon
         self._set_window_icon()
+        self.root.after(300, self._set_window_icon)
 
         self.notification_manager = init_notifications(self.root)
         self.error_handler = get_error_handler()
@@ -289,14 +290,28 @@ class YTDLPGUIApp:
 
     def _set_window_icon(self):
         try:
+            self.root._iconbitmap_method_called = True
             if getattr(sys, 'frozen', False):
                 icon_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
             else:
                 icon_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
-            if icon_path.exists():
-                self.root.iconbitmap(str(icon_path))
-            else:
+            if not icon_path.exists():
                 self.logger.warning(f"Icon not found: {icon_path}")
+                return
+            self.root.iconbitmap(str(icon_path))
+            self.root.update_idletasks()
+            try:
+                import ctypes
+                hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+                if hwnd:
+                    icon = ctypes.windll.user32.LoadImageW(
+                        0, str(icon_path), 1, 32, 32, 0x00000010
+                    )
+                    if icon:
+                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, icon)
+                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, icon)
+            except Exception:
+                pass
         except Exception as e:
             self.logger.warning(f"Failed to set icon: {e}")
 
