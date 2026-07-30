@@ -5,6 +5,7 @@ Author: vokrob
 Date: 18.07.2025
 """
 
+import tkinter as tk
 import customtkinter as ctk
 import threading
 import logging
@@ -46,10 +47,49 @@ class DownloadQueueFrame(ctk.CTkFrame):
         )
         title_label.grid(row=0, column=0, pady=(15, 20))
 
-        # Scrollable frame for queue items
-        self.scrollable_frame = ctk.CTkScrollableFrame(self, corner_radius=8)
-        self.scrollable_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        # Canvas + scrollbar for queue items (scrollbar shows only when needed)
+        scroll_container = ctk.CTkFrame(self, fg_color="transparent")
+        scroll_container.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        scroll_container.grid_columnconfigure(0, weight=1)
+        scroll_container.grid_rowconfigure(0, weight=1)
+
+        self.canvas = tk.Canvas(
+            scroll_container,
+            bg="#1A1A1A",
+            highlightthickness=0,
+            bd=0
+        )
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.scrollbar = ctk.CTkScrollbar(scroll_container, command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        # Inner frame (actual content container)
+        self.scrollable_frame = ctk.CTkFrame(self.canvas, corner_radius=8)
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), window=self.scrollable_frame, anchor="nw"
+        )
+
+        # Configure scroll region and toggle scrollbar visibility
+        def _on_inner_frame_configure(event):
+            bbox = self.canvas.bbox("all")
+            if bbox:
+                self.canvas.configure(scrollregion=bbox)
+                content_height = bbox[3]
+                canvas_height = self.canvas.winfo_height()
+                if content_height > canvas_height:
+                    self.scrollbar.grid(row=0, column=1, sticky="ns")
+                else:
+                    self.scrollbar.grid_remove()
+
+        def _on_canvas_configure(event):
+            self.canvas.itemconfig(self.canvas_window, width=event.width)
+
+        self.scrollable_frame.bind("<Configure>", _on_inner_frame_configure)
+        self.canvas.bind("<Configure>", _on_canvas_configure)
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self._bind_mousewheel(self.scrollable_frame, self._on_mousewheel)
 
         # Empty state label
         self.empty_label = ctk.CTkLabel(
@@ -86,6 +126,20 @@ class DownloadQueueFrame(ctk.CTkFrame):
             command=self.go_home
         )
         self.home_button.grid(row=0, column=2, sticky="e")
+    def _on_mousewheel(self, event):
+        bbox = self.canvas.bbox("all")
+        if not bbox:
+            return
+        content_height = bbox[3]
+        canvas_height = self.canvas.winfo_height()
+        if content_height > canvas_height:
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _bind_mousewheel(self, widget, handler):
+        widget.bind("<MouseWheel>", handler, add="+")
+        for child in widget.winfo_children():
+            self._bind_mousewheel(child, handler)
+
     def go_home(self):
         """Handle home button click"""
         if self.on_home_click:
@@ -207,6 +261,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
         )
         status_label.grid(row=0, column=1, padx=5, sticky="e")
 
+        self._bind_mousewheel(item_frame, self._on_mousewheel)
         return item_frame
 
     def update_queue_item(self, index: int, download_item: DownloadItem):
