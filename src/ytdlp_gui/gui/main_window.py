@@ -299,17 +299,15 @@ class YTDLPGUIApp:
                 self.logger.warning(f"Icon not found: {icon_path}")
                 return
             self.root.iconbitmap(str(icon_path))
-            self.root.update_idletasks()
             try:
                 import ctypes
-                hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
-                if hwnd:
-                    icon = ctypes.windll.user32.LoadImageW(
-                        0, str(icon_path), 1, 32, 32, 0x00000010
-                    )
-                    if icon:
-                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, icon)
-                        ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, icon)
+                hwnd = self.root.winfo_id()
+                icon = ctypes.windll.user32.LoadImageW(
+                    0, str(icon_path), 1, 0, 0, 0x00000010
+                )
+                if icon:
+                    ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, icon)
+                    ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, icon)
             except Exception:
                 pass
         except Exception as e:
