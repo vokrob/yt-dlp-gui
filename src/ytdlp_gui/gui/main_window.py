@@ -12,6 +12,7 @@ import logging
 import tempfile
 from pathlib import Path
 import time
+import sys
 
 from ytdlp_gui.core.download_manager import DownloadManager
 from ytdlp_gui.core.settings_manager import SettingsManager
@@ -66,9 +67,8 @@ class YTDLPGUIApp:
         self.setup_ui()
         self.setup_bindings()
 
-        # Override CTk default icon
-        self._set_window_icon()
-        self.root.after(300, self._set_window_icon)
+        # Override CTk default icon (after window is fully initialized)
+        self.root.after(500, self._set_window_icon)
 
         self.notification_manager = init_notifications(self.root)
         self.error_handler = get_error_handler()
@@ -289,19 +289,48 @@ class YTDLPGUIApp:
         )
 
     def _set_window_icon(self):
+        if getattr(sys, 'frozen', False):
+            ico_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
+        else:
+            ico_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
+        if not ico_path.exists():
+            self.logger.warning(f"Icon not found: {ico_path}")
+            return
+
+        import ctypes
         try:
-            self.root._iconbitmap_method_called = True
-            if getattr(sys, 'frozen', False):
-                ico_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
-            else:
-                ico_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
-            if not ico_path.exists():
-                self.logger.warning(f"Icon not found: {ico_path}")
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            if not hwnd:
+                self.logger.warning("No HWND for window")
                 return
-            from PIL import Image, ImageTk
-            img = Image.open(ico_path).resize((32, 32), Image.LANCZOS)
-            self._icon_photo = ImageTk.PhotoImage(img)
-            self.root.iconphoto(True, self._icon_photo)
+
+            LR_LOADFROMFILE = 0x10
+            IMAGE_ICON = 1
+            WM_SETICON = 0x0080
+            ICON_SMALL = 0
+            ICON_BIG = 1
+            GCLP_HICON = -14
+            GCLP_HICONSM = -34
+
+            user32 = ctypes.windll.user32
+
+            # Class-level icons (survive any Tk withdraw/deiconify)
+            class_large = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, 0, 0, LR_LOADFROMFILE)
+            class_small = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
+            if class_large:
+                user32.SetClassLongPtrW(hwnd, GCLP_HICON, class_large)
+            if class_small:
+                user32.SetClassLongPtrW(hwnd, GCLP_HICONSM, class_small)
+
+            # Window-level icons (immediate visual update)
+            win_large = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, 48, 48, LR_LOADFROMFILE)
+            win_small = user32.LoadImageW(None, str(ico_path), IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
+            if win_large:
+                user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, win_large)
+            if win_small:
+                user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, win_small)
+
+            self.root._iconbitmap_method_called = True
         except Exception as e:
             self.logger.warning(f"Failed to set icon: {e}")
 
