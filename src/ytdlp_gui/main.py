@@ -49,7 +49,11 @@ def _ensure_binaries():
         root.configure(bg='#1a1a2e')
 
         try:
-            root.iconbitmap(Path(__file__).resolve().parent.parent.parent / 'assets' / 'icon.ico')
+            if getattr(sys, 'frozen', False):
+                icon_path = Path(sys._MEIPASS) / 'assets' / 'icon.ico'
+            else:
+                icon_path = Path(__file__).resolve().parent.parent.parent / 'assets' / 'icon.ico'
+            root.iconbitmap(str(icon_path))
         except:
             pass
 
