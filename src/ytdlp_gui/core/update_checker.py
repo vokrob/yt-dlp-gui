@@ -152,7 +152,7 @@ class UpdateChecker:
         os.makedirs(dest_dir, exist_ok=True)
 
         system = platform.system()
-        exe_name = "yt-dlp GUI.exe" if system == "Windows" else "yt-dlp-gui"
+        exe_name = "yt-dlp-gui.exe" if system == "Windows" else "yt-dlp-gui"
         exe_path = os.path.join(dest_dir, exe_name)
 
         try:

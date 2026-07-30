@@ -11,7 +11,7 @@ import platform
 from pathlib import Path
 
 # Application information
-APP_NAME = "yt-dlp GUI"
+APP_NAME = "yt-dlp-gui"
 APP_VERSION = "1"
 APP_DESCRIPTION = "Desktop GUI for yt-dlp"
 
@@ -99,6 +99,11 @@ def create_pyinstaller_spec():
     datas = []
     if ASSETS_DIR.exists():
         datas.append((str(ASSETS_DIR), "assets"))
+
+    # Package assets (themes, etc.)
+    pkg_assets = Path("src") / "ytdlp_gui" / "assets"
+    if pkg_assets.exists():
+        datas.append((str(pkg_assets), "ytdlp_gui/assets"))
 
 
     
