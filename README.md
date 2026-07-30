@@ -1,5 +1,5 @@
 <h1>
-  <img src="logo.png" width="32" height="32" style="vertical-align: -4px; margin-right: 8px;" />
+  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px;" />
   yt-dlp GUI
 </h1>
 
