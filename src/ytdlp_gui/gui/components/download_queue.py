@@ -105,7 +105,18 @@ class DownloadQueueFrame(ctk.CTkFrame):
         buttons_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
         buttons_frame.grid_columnconfigure(1, weight=1)  # Expand middle space
 
-        # Clear Downloads button (left aligned)
+        # Back button (left aligned)
+        self.back_button = ctk.CTkButton(
+            buttons_frame,
+            text="Back",
+            width=120,
+            height=36,
+            font=ctk.CTkFont(size=13),
+            command=self.go_back
+        )
+        self.back_button.grid(row=0, column=0, sticky="w")
+
+        # Clear button (right aligned)
         self.clear_button = ctk.CTkButton(
             buttons_frame,
             text="Clear",
@@ -114,18 +125,8 @@ class DownloadQueueFrame(ctk.CTkFrame):
             font=ctk.CTkFont(size=13),
             command=self.clear_downloads
         )
-        self.clear_button.grid(row=0, column=0, sticky="w")
+        self.clear_button.grid(row=0, column=2, sticky="e")
 
-        # Home button (right aligned)
-        self.home_button = ctk.CTkButton(
-            buttons_frame,
-            text="Home",
-            width=120,
-            height=36,
-            font=ctk.CTkFont(size=13),
-            command=self.go_home
-        )
-        self.home_button.grid(row=0, column=2, sticky="e")
     def _on_mousewheel(self, event):
         bbox = self.canvas.bbox("all")
         if not bbox:
@@ -140,10 +141,10 @@ class DownloadQueueFrame(ctk.CTkFrame):
         for child in widget.winfo_children():
             self._bind_mousewheel(child, handler)
 
-    def go_home(self):
-        """Handle home button click"""
-        if self.on_home_click:
-            self.on_home_click()
+    def go_back(self):
+        """Handle back button click"""
+        if self.on_back_click:
+            self.on_back_click()
 
     def clear_downloads(self):
         """Handle clear downloads button click"""

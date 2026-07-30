@@ -253,7 +253,7 @@ class YTDLPGUIApp:
         self.download_queue_frame = DownloadQueueFrame(
             self.main_frame,
             download_manager=self.download_manager,
-            on_home_click=self.show_url_input
+            on_back_click=self.go_back_from_downloads
         )
 
         # Setup progress tracking
