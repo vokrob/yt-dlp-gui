@@ -6,7 +6,6 @@ Date: 18.07.2025
 """
 
 import customtkinter as ctk
-import tkinter as tk
 from tkinter import messagebox
 import threading
 import logging
@@ -25,7 +24,6 @@ from ytdlp_gui.gui.components.download_queue import DownloadQueueFrame
 from ytdlp_gui.gui.components.simple_url_input import SimpleURLInputFrame
 from ytdlp_gui.gui.components.video_preview import VideoPreviewFrame
 from ytdlp_gui.gui.components.download_options import DownloadOptionsFrame
-from ytdlp_gui.gui.components.update_banner import UpdateBanner
 from ytdlp_gui.utils.notifications import init_notifications, get_notification_manager, get_error_handler
 from ytdlp_gui.utils.logger import init_logging, get_logger
 
@@ -86,36 +84,45 @@ class YTDLPGUIApp:
         self._check_updates()
 
     def _check_updates(self):
-        """Check for updates in background thread"""
+        """Check for updates in background thread, then schedule next check in 1 hour"""
         def _check():
             try:
-                self._update_info = self.update_checker.check()
-                if self._update_info and self._update_info.get("available"):
+                info = self.update_checker.check()
+                if info and info.get("available"):
+                    self._update_info = info
                     self.logger.info(
-                        f"Update available: v{self._update_info['latest_version']}"
+                        f"Update available: v{info['latest_version']}"
                     )
                     self.root.after(
                         0,
-                        lambda: self.update_banner.show(
-                            self._update_info["latest_version"]
+                        lambda: self._show_update_button(
+                            info["latest_version"]
                         )
                     )
             except Exception as e:
                 self.logger.warning(f"Update check failed: {e}")
 
         threading.Thread(target=_check, daemon=True).start()
+        self.root.after(3600000, self._check_updates)
 
     def _on_update_download(self):
         """Handle update button click - download and apply update"""
         if not self._update_info or not self._update_info.get("download_url"):
             return
 
+        self.update_btn.configure(text="Downloading...", state="disabled")
+
         def _do_update():
             try:
                 dest_dir = tempfile.mkdtemp(prefix="ytdlp-gui-update-")
 
                 def progress_callback(p):
-                    self.root.after(0, lambda: self.update_banner.set_progress(p))
+                    self.root.after(
+                        0,
+                        lambda: self.update_btn.configure(
+                            text=f"Downloading... {int(p * 100)}%"
+                        )
+                    )
 
                 exe_path = self.update_checker.download_update(
                     self._update_info["download_url"],
@@ -124,24 +131,40 @@ class YTDLPGUIApp:
                 )
 
                 if exe_path:
-                    self.root.after(0, self.update_banner.show_applying)
+                    self.root.after(0, lambda: self.update_btn.configure(text="Applying..."))
                     self.update_checker.apply_update(exe_path)
                     self.root.after(1500, self._exit_for_update)
                 else:
                     self.root.after(
                         0,
-                        lambda: self.update_banner.show_error("Download failed")
+                        lambda: self.update_btn.configure(
+                            text="Update Failed",
+                            fg_color="#8b0000",
+                            state="normal"
+                        )
                     )
 
             except Exception as e:
                 self.logger.error(f"Update failed: {e}")
                 self.root.after(
                     0,
-                    lambda: self.update_banner.show_error(str(e))
+                    lambda: self.update_btn.configure(
+                        text="Update Failed",
+                        fg_color="#8b0000",
+                        state="normal"
+                    )
                 )
 
-        self.update_banner.show_downloading()
         threading.Thread(target=_do_update, daemon=False).start()
+
+    def _show_update_button(self, version: str):
+        """Show update button in top-right corner"""
+        self.update_btn.configure(
+            text="Update",
+            fg_color="#2d7a2d",
+            state="normal"
+        )
+        self.update_btn.grid(row=0, column=0, sticky="e", padx=(0, 15), pady=(8, 0))
 
     def _exit_for_update(self):
         """Exit the app so updater script can replace the exe"""
@@ -162,10 +185,17 @@ class YTDLPGUIApp:
 
     def create_all_components(self):
         """Create UI components"""
-        self.update_banner = UpdateBanner(
+        self.update_btn = ctk.CTkButton(
             self.root,
-            on_update=self._on_update_download,
-            on_dismiss=lambda: self.update_banner.hide()
+            text="",
+            width=90,
+            height=28,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#2d7a2d",
+            hover_color="#1a5c1a",
+            text_color="white",
+            command=self._on_update_download,
+            corner_radius=4
         )
 
         self.main_frame = ctk.CTkFrame(self.root)
