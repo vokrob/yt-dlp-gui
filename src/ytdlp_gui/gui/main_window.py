@@ -292,24 +292,16 @@ class YTDLPGUIApp:
         try:
             self.root._iconbitmap_method_called = True
             if getattr(sys, 'frozen', False):
-                icon_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
+                ico_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
             else:
-                icon_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
-            if not icon_path.exists():
-                self.logger.warning(f"Icon not found: {icon_path}")
+                ico_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
+            if not ico_path.exists():
+                self.logger.warning(f"Icon not found: {ico_path}")
                 return
-            self.root.iconbitmap(str(icon_path))
-            try:
-                import ctypes
-                hwnd = self.root.winfo_id()
-                icon = ctypes.windll.user32.LoadImageW(
-                    0, str(icon_path), 1, 0, 0, 0x00000010
-                )
-                if icon:
-                    ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 1, icon)
-                    ctypes.windll.user32.SendMessageW(hwnd, 0x0080, 0, icon)
-            except Exception:
-                pass
+            from PIL import Image, ImageTk
+            img = Image.open(ico_path).resize((32, 32), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self.root.tk.call('wm', 'iconphoto', self.root._w, photo)
         except Exception as e:
             self.logger.warning(f"Failed to set icon: {e}")
 
