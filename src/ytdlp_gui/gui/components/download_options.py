@@ -47,9 +47,6 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         controls_frame.grid(row=0, column=0, pady=(15, 15))
 
         # Format Selection - centered
-        format_label = ctk.CTkLabel(controls_frame, text="Format:", font=ctk.CTkFont(size=12))
-        format_label.grid(row=0, column=0, padx=(0, 8))
-
         self.format_var = ctk.StringVar(value="Video")
         self.format_selector = ctk.CTkSegmentedButton(
             controls_frame,
@@ -59,12 +56,9 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             height=32,
             width=160
         )
-        self.format_selector.grid(row=0, column=1, padx=(0, 15))
+        self.format_selector.grid(row=0, column=0, padx=(0, 15))
 
         # Quality Selection - close to format
-        self.quality_label = ctk.CTkLabel(controls_frame, text="Quality:", font=ctk.CTkFont(size=12))
-        self.quality_label.grid(row=0, column=2, padx=(0, 8))
-
         self.quality_var = ctk.StringVar(value="Loading...")
         self.quality_dropdown = ctk.CTkComboBox(
             controls_frame,
@@ -75,7 +69,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             height=32,
             width=140
         )
-        self.quality_dropdown.grid(row=0, column=3)
+        self.quality_dropdown.grid(row=0, column=1)
 
         # Save path row — centered under options
         path_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -205,13 +199,9 @@ class DownloadOptionsFrame(ctk.CTkFrame):
 
         # Show/hide quality selection based on type
         if value == "Audio":
-            # Hide quality selection for audio
-            self.quality_label.grid_remove()
             self.quality_dropdown.grid_remove()
         else:
-            # Show quality selection for video
-            self.quality_label.grid(row=0, column=2, padx=(0, 8))
-            self.quality_dropdown.grid(row=0, column=3)
+            self.quality_dropdown.grid(row=0, column=1)
             
     def on_quality_change(self, value):
         """Handle quality change"""
