@@ -66,8 +66,8 @@ class YTDLPGUIApp:
         self.setup_ui()
         self.setup_bindings()
 
-        # Override CTk default icon after window is ready
-        self.root.after(100, self._set_window_icon)
+        # Override CTk default icon
+        self._set_window_icon()
 
         self.notification_manager = init_notifications(self.root)
         self.error_handler = get_error_handler()
@@ -294,9 +294,11 @@ class YTDLPGUIApp:
             else:
                 icon_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
             if icon_path.exists():
-                self.root.wm_iconbitmap(str(icon_path))
-        except:
-            pass
+                self.root.iconbitmap(str(icon_path))
+            else:
+                self.logger.warning(f"Icon not found: {icon_path}")
+        except Exception as e:
+            self.logger.warning(f"Failed to set icon: {e}")
 
     def setup_bindings(self):
         """Set up event bindings"""
