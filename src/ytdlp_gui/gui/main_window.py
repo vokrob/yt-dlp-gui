@@ -65,7 +65,7 @@ class YTDLPGUIApp:
 
         # Try to set icon
         try:
-            icon_path = Path(__file__).parent.parent.parent / "assets" / "icon.ico"
+            icon_path = Path(__file__).resolve().parent.parent.parent.parent / "assets" / "icon.ico"
             if icon_path.exists():
                 self.root.iconbitmap(str(icon_path))
         except:

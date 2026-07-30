@@ -49,7 +49,7 @@ def _ensure_binaries():
         root.configure(bg='#1a1a2e')
 
         try:
-            root.iconbitmap(Path(__file__).parent.parent / 'assets' / 'icon.ico')
+            root.iconbitmap(Path(__file__).resolve().parent.parent.parent / 'assets' / 'icon.ico')
         except:
             pass
 

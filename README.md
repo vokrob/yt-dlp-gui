@@ -1,16 +1,21 @@
-# YT-DLP GUI
-
-![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+<img src="logo.png" width="48" height="48" align="left" style="margin-right: 12px"/>
+<h1>yt-dlp GUI</h1>
 
 ## Description
 
-A simple desktop app for downloading videos and audio from [hundreds of sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) using yt-dlp.
+A modern desktop GUI for downloading videos and audio from [hundreds of sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) using yt-dlp. Binaries (yt-dlp, ffmpeg) are downloaded automatically on first launch — no manual setup required.
 
-**What it does:**
-- Downloads videos in MP4 (144p to 4K)
-- Extracts audio as MP3
+**Features:**
+- Downloads video as MP4 (144p to 4K) and audio as MP3
+- Download queue with persistence across restarts
+- Download history with search, statistics, and export (JSON/CSV)
+- Auto-extracts cookies from Chrome, Firefox, Edge, Opera, Safari
+- Auto-updates yt-dlp and ffmpeg on each launch
+- Self-updates the GUI itself via GitHub releases
+- User-friendly error messages (translates cryptic yt-dlp errors)
+- Settings: proxy, rate limiting, filename templates, subtitles, thumbnails
+- Toast notifications on download complete
+- Smart paste (Ctrl+V works on any keyboard layout, including Russian)
 
 ### Screenshots
 
@@ -28,21 +33,22 @@ A simple desktop app for downloading videos and audio from [hundreds of sites](h
 
 #### Download Progress
 ![Download Progress](assets/download-progress.png)
-*Watch your downloads*
+*Watch your downloads in the queue*
 
 ## Tech Stack
 
-- **Python 3.9+** - Core language
-- **CustomTkinter** - Modern GUI framework
-- **yt-dlp** - Video downloading engine
-- **Pillow** - Image processing
-- **PyInstaller** - Executable builds
+- **Python 3.9+** — Core language
+- **CustomTkinter** — Modern GUI framework
+- **yt-dlp** (standalone binary) — Download engine, downloaded at first run
+- **Pillow** — Image processing
+- **PyInstaller** — Executable builds
 
 ## Installation
 
 ### Pre-built executable
-1. Download the .exe from [Releases](../../releases)
+1. Download the latest `.exe` from [Releases](../../releases) (~18 MB)
 2. Run `yt-dlp-gui.exe`
+3. On first launch, yt-dlp and ffmpeg binaries (~50 MB) are downloaded automatically
 
 ### From source
 ```bash
@@ -58,11 +64,19 @@ pip install pyinstaller
 python build.py
 ```
 
+Builds are also automated via GitHub Actions — pushes of version tags trigger a workflow that produces the `.exe` artifact.
+
 ## Usage
 
 1. Launch the application
-2. Paste video URL in the input field
-3. Wait for video preview to load
-4. Select desired quality and format
-5. Click "Start" to begin download
+2. Paste a video URL (Ctrl+V works on any keyboard layout)
+3. Wait for the video preview to load (title, duration, thumbnail, quality options)
+4. Choose **Video** or **Audio** mode, then select desired quality
+5. Click **Start** to begin downloading
+6. Downloads appear in the queue — monitor progress, pause, or cancel
+7. Access your download history and settings from the main window
+
+## Configuration
+
+Settings are stored in `%APPDATA%\yt-dlp-gui\settings.json`. Configure via the GUI settings panel — no manual file editing required.
 
