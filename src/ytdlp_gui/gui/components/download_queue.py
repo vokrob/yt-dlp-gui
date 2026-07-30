@@ -7,6 +7,7 @@ Date: 18.07.2025
 
 import customtkinter as ctk
 import threading
+import logging
 from typing import Callable, Optional, List
 from ytdlp_gui.core.download_manager import DownloadItem, DownloadStatus
 
@@ -112,9 +113,8 @@ class DownloadQueueFrame(ctk.CTkFrame):
                 # Force immediate refresh
                 self.refresh_queue()
 
-                # Optional feedback
                 if cleared_count > 0:
-                    print(f"Cleared {cleared_count} downloads")
+                    logging.getLogger(__name__).info(f"Cleared {cleared_count} downloads")
 
         except Exception as e:
             # Re-enable button on error

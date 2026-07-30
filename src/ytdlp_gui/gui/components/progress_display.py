@@ -138,7 +138,6 @@ class ProgressDisplayFrame(ctk.CTkFrame):
                 # Show merger for high quality videos
                 if quality in ['720p', '1080p', '1440p', '2160p', '4K']:
                     should_show_merger = True
-                    print(f"Early merger detection for {download_item.title} ({quality})")
             # Update title
             title_text = download_item.title or "Downloading..."
             if len(title_text) > 80:
@@ -188,9 +187,6 @@ class ProgressDisplayFrame(ctk.CTkFrame):
                 if quality in ['720p', '1080p', '1440p', '2160p', '4K'] or not download_item.speed:
                     self.speed_label.configure(text="Merging formats...")
                     self.eta_label.configure(text="Processing")
-
-                    # Log for debugging
-                    print(f"GUI: Showing merger indicator for {download_item.title} ({quality})")
 
             # Update size info with better formatting
             if download_item.total_bytes > 0:

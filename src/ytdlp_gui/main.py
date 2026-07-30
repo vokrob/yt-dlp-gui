@@ -43,7 +43,7 @@ def _ensure_binaries():
         from tkinter import ttk, messagebox
 
         root = tk.Tk()
-        root.title("YT-DLP GUI")
+        root.title("yt-dlp GUI")
         root.geometry("420x140")
         root.resizable(False, False)
         root.configure(bg='#1a1a2e')

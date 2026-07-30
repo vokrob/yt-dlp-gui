@@ -56,7 +56,7 @@ class OutputSelectorFrame(ctk.CTkFrame):
         # Browse Button
         browse_btn = ctk.CTkButton(
             self,
-            text="Browse",
+            text="Browse...",
             width=80,
             command=self.browse_directory
         )

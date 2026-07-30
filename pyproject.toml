@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yt-dlp-gui"
 version = "1.1.0"
-description = "GUI for yt-dlp video downloader"
+description = "Desktop GUI for yt-dlp"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [

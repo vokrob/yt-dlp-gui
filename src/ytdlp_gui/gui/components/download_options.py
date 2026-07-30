@@ -269,13 +269,13 @@ class DownloadOptionsFrame(ctk.CTkFrame):
     def set_format(self, format_info: Dict):
         """Set the format selection"""
         if format_info.get('audio_only', False):
-            self.format_var.set("audio")
-            self.on_format_change("audio")
+            self.format_var.set("Audio")
+            self.on_format_change("Audio")
         else:
-            self.format_var.set("video")
-            self.on_format_change("video")
+            self.format_var.set("Video")
+            self.on_format_change("Video")
 
-        if 'quality' in format_info and self.format_var.get() == "video":
+        if 'quality' in format_info and self.format_var.get() == "Video":
             self.quality_var.set(format_info['quality'])
             
     def get_output_path(self) -> str:

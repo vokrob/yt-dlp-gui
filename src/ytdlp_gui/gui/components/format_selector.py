@@ -39,10 +39,10 @@ class FormatSelectorFrame(ctk.CTkFrame):
         type_label = ctk.CTkLabel(self, text="Type:")
         type_label.grid(row=1, column=0, padx=(20, 10), pady=5, sticky="w")
         
-        self.type_var = ctk.StringVar(value="video")
+        self.type_var = ctk.StringVar(value="Video")
         self.type_selector = ctk.CTkSegmentedButton(
             self,
-            values=["video", "audio"],
+            values=["Video", "Audio"],
             variable=self.type_var,
             command=self.on_type_change
         )
@@ -70,7 +70,7 @@ class FormatSelectorFrame(ctk.CTkFrame):
             self.type_var.set(value)
 
         # Show/hide quality selection based on type
-        if value == "audio":
+        if value == "Audio":
             # Hide quality selection for audio
             self.quality_label.grid_remove()
             self.quality_dropdown.grid_remove()
@@ -93,7 +93,7 @@ class FormatSelectorFrame(ctk.CTkFrame):
             
     def get_selected_format(self) -> Dict:
         """Get the currently selected format information"""
-        is_audio = self.type_var.get() == "audio"
+        is_audio = self.type_var.get() == "Audio"
         quality = self.quality_var.get()
 
         # AGGRESSIVE DIAGNOSTICS
@@ -142,13 +142,13 @@ class FormatSelectorFrame(ctk.CTkFrame):
     def set_format(self, format_info: Dict):
         """Set the format selection"""
         if format_info.get('audio_only', False):
-            self.type_var.set("audio")
-            self.on_type_change("audio")
+            self.type_var.set("Audio")
+            self.on_type_change("Audio")
         else:
-            self.type_var.set("video")
-            self.on_type_change("video")
+            self.type_var.set("Video")
+            self.on_type_change("Video")
 
-        if 'quality' in format_info and self.type_var.get() == "video":
+        if 'quality' in format_info and self.type_var.get() == "Video":
             self.quality_var.set(format_info['quality'])
             
     def update_available_formats(self, url: str, formats: List = None):
@@ -183,6 +183,6 @@ class FormatSelectorFrame(ctk.CTkFrame):
             
     def reset_to_defaults(self):
         """Reset to default format selection"""
-        self.type_var.set("video")
+        self.type_var.set("Video")
         self.quality_var.set("2160p (4K)")
-        self.on_type_change("video")
+        self.on_type_change("Video")

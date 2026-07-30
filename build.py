@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Build Script for YT-DLP GUI - Video & Audio Downloader
+Build Script for yt-dlp GUI - Desktop GUI for yt-dlp
 """
 
 import sys
@@ -13,7 +13,7 @@ from pathlib import Path
 # Application information
 APP_NAME = "yt-dlp-gui"
 APP_VERSION = "1.1.0"
-APP_DESCRIPTION = "Modern GUI for yt-dlp - Video & Audio Downloader"
+APP_DESCRIPTION = "Desktop GUI for yt-dlp"
 
 # Build configuration
 BUILD_DIR = Path("build")

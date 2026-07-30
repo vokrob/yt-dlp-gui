@@ -60,7 +60,7 @@ class YTDLPGUIApp:
 
         # Main window
         self.root = ctk.CTk()
-        self.root.title("YT-DLP GUI")
+        self.root.title("yt-dlp GUI")
         self.root.geometry("1200x750")
         self.root.minsize(1000, 650)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
