@@ -41,6 +41,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
         self.video_info = None
         self.thumbnail_image = None
         self.loading_complete = False
+        self.last_loaded_url = None
 
         self.setup_ui()
 
@@ -238,7 +239,16 @@ class VideoPreviewFrame(ctk.CTkFrame):
 
     def load_video_info(self, url: str):
         """Load video information from URL"""
+        if url == self.last_loaded_url and self.video_info:
+            self.logger.info(f"Using cached video info for URL: {url}")
+            self._update_video_info()
+            self._finalize_loading()
+            if self.on_info_loaded and self.video_info.get('url'):
+                self.on_info_loaded(self.video_info['url'])
+            return
+
         self.logger.info(f"Loading video info for URL: {url}")
+        self.last_loaded_url = url
 
         # Reset state and show loading
         self.start_loading_animation()

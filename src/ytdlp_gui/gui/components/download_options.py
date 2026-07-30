@@ -42,17 +42,9 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         options_frame.grid(row=0, column=0, sticky="ew", pady=10)
         options_frame.grid_columnconfigure(0, weight=1)
 
-        # Title - clean and modern
-        title_label = ctk.CTkLabel(
-            options_frame,
-            text="Options",
-            font=ctk.CTkFont(size=15, weight="bold")
-        )
-        title_label.grid(row=0, column=0, pady=(15, 10))
-
         # Centered controls layout - compact and balanced
         controls_frame = ctk.CTkFrame(options_frame, fg_color="transparent")
-        controls_frame.grid(row=1, column=0, pady=(0, 15))
+        controls_frame.grid(row=0, column=0, pady=(15, 15))
 
         # Format Selection - centered
         format_label = ctk.CTkLabel(controls_frame, text="Format:", font=ctk.CTkFont(size=12))
@@ -120,6 +112,11 @@ class DownloadOptionsFrame(ctk.CTkFrame):
 
     def load_video_qualities(self, url: str):
         """Load available qualities for the video URL"""
+        if url == self.current_url and self.available_qualities:
+            self.logger.info(f"Using cached qualities for URL: {url}")
+            self.after(0, self._update_quality_dropdown)
+            return
+
         self.current_url = url
         self.quality_var.set("Loading...")
         self.quality_dropdown.configure(values=["Loading..."])
