@@ -40,14 +40,8 @@ class URLInputFrame(ctk.CTkFrame):
         self.url_entry.bind("<KeyRelease>", self.on_url_entry_change)
         self.url_entry.bind("<Return>", self.on_enter_pressed)
 
-        # Add comprehensive paste support for different keyboard layouts
-        # Standard Ctrl+V combinations
-        self.url_entry.bind("<Control-v>", self.on_paste)
-        self.url_entry.bind("<Control-V>", self.on_paste)
-
-        # Alternative key combinations (without Russian symbols to avoid tkinter errors)
-        self.url_entry.bind("<Control-Key-v>", self.on_paste)
-        self.url_entry.bind("<Control-Key-V>", self.on_paste)
+        # Paste support — trigger validation after paste (layout-independent)
+        self.url_entry.bind("<<Paste>>", self._on_paste)
 
         # Middle mouse button for Linux
         self.url_entry.bind("<Button-2>", self.on_paste)
@@ -138,6 +132,11 @@ class URLInputFrame(ctk.CTkFrame):
         url = self.url_entry.get().strip()
         if url and self.on_add_to_queue:
             self.on_add_to_queue(url)
+
+    def _on_paste(self, event=None):
+        """Validate URL after paste (works with any keyboard layout)"""
+        self.after(10, self.on_url_entry_change)
+        return None  # Let default paste behavior handle the insert
 
     def on_paste(self, event=None):
         """Handle paste operation"""
