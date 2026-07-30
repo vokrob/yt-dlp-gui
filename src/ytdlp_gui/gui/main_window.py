@@ -300,8 +300,8 @@ class YTDLPGUIApp:
                 return
             from PIL import Image, ImageTk
             img = Image.open(ico_path).resize((32, 32), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
-            self.root.tk.call('wm', 'iconphoto', self.root._w, photo)
+            self._icon_photo = ImageTk.PhotoImage(img)
+            self.root.iconphoto(True, self._icon_photo)
         except Exception as e:
             self.logger.warning(f"Failed to set icon: {e}")
 
