@@ -5,7 +5,7 @@
 
 Paste a link, pick the quality, and download. No setup, everything updates itself.
 
-## 1. Description
+## Description
 
 Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
@@ -31,7 +31,7 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 ![Download Progress](assets/download-progress.png)
 *Watch your downloads in the queue*
 
-## 2. Tech Stack
+## Tech Stack
 
 - **Python 3.9+** - Core language
 - **CustomTkinter** - Modern GUI framework
@@ -39,7 +39,7 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 - **Pillow** - Image processing
 - **PyInstaller** - Executable builds
 
-## 3. Installation
+## Installation
 
 1. Download the latest `.exe` from [Releases](../../releases) (~23 MB). Windows 10/11 (64-bit) only
 2. Run it. It is unsigned, so SmartScreen may ask you to confirm: click "More info", then "Run anyway"
@@ -56,7 +56,7 @@ python main.py
 
 To build the exe: `pip install pyinstaller` and `python build.py`. Releases are also built automatically on version tags via GitHub Actions.
 
-## 4. Usage
+## Usage
 
 1. Launch the app and paste a video URL
 2. Wait for the preview to load (title, duration, thumbnail, quality options)
