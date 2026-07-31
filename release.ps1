@@ -45,11 +45,11 @@ Write-Host "Tag: $tag`n" -ForegroundColor Cyan
 
 # 1. Update version in __init__.py
 $initPy = Join-Path $root 'src\ytdlp_gui\__init__.py'
-Update-File -Path $initPy -Pattern '__version__\s*=\s*"[^"]*"' -Value "__version__ = `"$new`""
+Update-File -Path $initPy -Pattern '__version__\s*=\s*"[^"]*"' -NewValue "__version__ = `"$new`""
 
 # 2. Update version in pyproject.toml
 $toml = Join-Path $root 'pyproject.toml'
-Update-File -Path $toml -Pattern '(?m)^version\s*=\s*"[^"]*"' -Value $new
+Update-File -Path $toml -Pattern '(?m)^version\s*=\s*"[^"]*"' -NewValue "version = `"$new`""
 
 # 3. Commit
 Write-Host "`n  Committing..." -NoNewline
