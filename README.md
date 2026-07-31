@@ -34,7 +34,7 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 ## Tech Stack
 
 - **Python 3.9+** - Core language
-- **CustomTkinter** - Modern GUI framework
+- **CustomTkinter** - GUI framework
 - **yt-dlp** (standalone binary) - Download engine, downloaded at first run
 - **Pillow** - Image processing
 - **PyInstaller** - Executable builds
