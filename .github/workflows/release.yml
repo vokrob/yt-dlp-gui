@@ -65,7 +65,7 @@ jobs:
           git add -u CHANGELOG.md
           git commit -m "Release ${VERSION}" \
             -m "Created by: ${GITHUB_EVENT_SENDER_LOGIN}" -m ":ci skip all"
-          git push origin "${GITHUB_EVENT_REF}"
+          git push origin "${GITHUB_REF}"
 
       - name: Get target commitish
         id: get_target
