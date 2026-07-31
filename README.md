@@ -1,6 +1,6 @@
 <h1>
-  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: sub; margin-right: 8px;" />
-  yt-dlp GUI
+  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px;" />
+  <sup>yt-dlp GUI</sup>
 </h1>
 
 Paste a link, pick the quality, and download. No setup, everything updates itself.
