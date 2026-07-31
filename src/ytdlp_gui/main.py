@@ -37,7 +37,7 @@ def _ensure_binaries():
         ffmpeg_ok = (bin_dir / 'ffmpeg.exe').exists() and (bin_dir / 'ffprobe.exe').exists()
 
         if ytdlp_ok and ffmpeg_ok:
-            return
+            return True
 
         import tkinter as tk
         from tkinter import ttk, messagebox

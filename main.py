@@ -53,6 +53,19 @@ def main():
     """Start the application"""
     try:
         setup_logging()
+
+        # Download missing binaries (yt-dlp, ffmpeg) before starting the GUI
+        from ytdlp_gui.main import _ensure_binaries
+        if not _ensure_binaries():
+            sys.exit(1)
+
+        # Auto-update yt-dlp before launching GUI (synchronous)
+        try:
+            from ytdlp_gui.core import binary_manager
+            binary_manager.update_ytdlp()
+        except Exception:
+            pass
+
         app = YTDLPGUIApp()
         app.run()
     except Exception as e:
