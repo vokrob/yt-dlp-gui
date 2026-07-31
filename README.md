@@ -38,7 +38,7 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 
 ## Installation
 
-1. Download the latest `.exe` from [Releases](../../releases) (~23 MB). Windows 10/11 (64-bit) only
+1. Download the latest `.exe` from [Releases](../../releases) (~23 MB). Windows 10/11 only
 2. Run it. It is unsigned, so SmartScreen may ask you to confirm: click "More info", then "Run anyway"
 3. First launch downloads yt-dlp and ffmpeg (~130 MB, 1-2 minutes)
 
