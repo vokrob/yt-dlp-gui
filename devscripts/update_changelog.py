@@ -39,8 +39,8 @@ def tag_exists(name):
 
 def get_commits(prev_version):
     args = ['git', 'log', '--pretty=%s%x09%b', '--no-merges']
-    if prev_version and tag_exists('latest'):
-        args.append('latest..HEAD')
+    if prev_version and tag_exists(f'v{prev_version}'):
+        args.append(f'v{prev_version}..HEAD')
     proc = run_process(*args)
     commits = []
     for line in proc.stdout.strip().splitlines():
