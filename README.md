@@ -51,7 +51,7 @@ pip install -r requirements.txt
 python main.py
 ```
 
-To build the exe: `pip install pyinstaller` and `python build.py`. Releases are also built automatically on version tags via GitHub Actions.
+To build the exe: `pip install pyinstaller`, then `python build.py`. Releases are also built automatically on version tags.
 
 ## Usage
 
@@ -61,4 +61,5 @@ To build the exe: `pip install pyinstaller` and `python build.py`. Releases are 
 4. Watch progress in the queue; pause or cancel anytime
 5. History, statistics and settings are in the main window
 
-Notes: if browser cookies do not work, export them with the "Get cookies.txt" extension and put `cookies.txt` next to the exe. YouTube may require a VPN in some regions.
+- If browser cookies do not work, export them with the "Get cookies.txt" extension and put `cookies.txt` next to the exe
+- YouTube may require a VPN in some regions
