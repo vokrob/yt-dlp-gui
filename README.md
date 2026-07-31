@@ -45,12 +45,24 @@ A modern desktop GUI for downloading videos and audio from [hundreds of sites](h
 - **Pillow** — Image processing
 - **PyInstaller** — Executable builds
 
+## System Requirements
+
+- **Windows 10/11** (64-bit) — Windows 8.1 and older are not supported
+- **~150 MB free disk space** — yt-dlp and ffmpeg are downloaded automatically on first launch (1–2 minutes)
+- **Network access** to github.com and gyan.dev (YouTube may require a VPN in some regions)
+- The `.exe` is unsigned — Windows SmartScreen may show a warning; click "More info → Run anyway"
+
+## Notes
+
+- Cookies are read automatically from installed browsers (Chrome, Edge, Firefox, Opera, Safari) — required for age-restricted or private videos
+- If a download fails with an auth error, export cookies via the "Get cookies.txt" browser extension and place `cookies.txt` next to `yt-dlp-gui.exe`
+
 ## Installation
 
 ### Pre-built executable
-1. Download the latest `.exe` from [Releases](../../releases) (~18 MB)
+1. Download the latest `.exe` from [Releases](../../releases) (~23 MB)
 2. Run `yt-dlp-gui.exe`
-3. On first launch, yt-dlp and ffmpeg binaries (~50 MB) are downloaded automatically
+3. On first launch, yt-dlp and ffmpeg binaries (~130 MB) are downloaded automatically
 
 ### From source
 ```bash
