@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yt-dlp-gui"
-version = "2026.08.02"
+version = "2026.08.03"
 description = "Desktop GUI for yt-dlp"
 readme = "README.md"
 license = {file = "LICENSE"}
