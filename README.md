@@ -1,5 +1,5 @@
 <h1>
-  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px;" />
+  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px; position: relative; top: 8px;" />
   yt-dlp GUI
 </h1>
 
@@ -16,17 +16,17 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 #### Screenshots
 
 ![URL Input](assets/url-input.png)
-*Just paste a link and hit enter*
+*Paste a link and press Enter*
 
 ---
 
 ![Video Preview](assets/video-preview.png)
-*Pick your quality and format*
+*Choose your quality, format, and save location*
 
 ---
 
 ![Download Progress](assets/download-progress.png)
-*Watch your downloads in the queue*
+*Track your downloads*
 
 ## Tech Stack
 
