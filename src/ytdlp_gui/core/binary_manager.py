@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 YTDLP_EXE_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
 YTDLP_NIGHTLY_URL = "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+FFMPEG_ZIP_BACKUP_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip"
+
+
+def _download_file(url: str, dest: Path, timeout: int = 60) -> None:
+    """Download a file with a per-request timeout. Raises on failure."""
+    with urllib.request.urlopen(url, timeout=timeout) as resp, open(dest, 'wb') as f:
+        shutil.copyfileobj(resp, f)
 
 
 def get_bin_dir() -> Path:
@@ -49,10 +56,13 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
     if not ytdlp_path.exists():
         report("Downloading yt-dlp.exe...", 0)
         try:
-            urllib.request.urlretrieve(YTDLP_EXE_URL, ytdlp_path)
+            _download_file(YTDLP_EXE_URL, ytdlp_path)
             size = ytdlp_path.stat().st_size
+            if size < 1_000_000:
+                raise RuntimeError(f"yt-dlp.exe is truncated ({size} bytes)")
             report("yt-dlp.exe downloaded (%d MB)" % (size // 1024 // 1024), 40)
         except Exception as e:
+            ytdlp_path.unlink(missing_ok=True)
             report("yt-dlp.exe download failed: %s" % e, 0)
             return False
     else:
@@ -61,20 +71,33 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
     if not ffmpeg_path.exists() or not ffprobe_path.exists():
         report("Downloading FFmpeg...", 45)
         zip_path = bin_dir / 'ffmpeg.zip'
-        try:
-            urllib.request.urlretrieve(FFMPEG_ZIP_URL, zip_path)
-            report("Extracting FFmpeg...", 70)
-            with zipfile.ZipFile(zip_path, 'r') as zf:
-                for member in zf.namelist():
-                    name = Path(member).name
-                    if name in ('ffmpeg.exe', 'ffprobe.exe'):
-                        with zf.open(member) as src, open(bin_dir / name, 'wb') as dst:
-                            shutil.copyfileobj(src, dst)
-                        report("Extracted %s" % name, 80)
-            zip_path.unlink()
-            report("FFmpeg ready", 90)
-        except Exception as e:
-            report("FFmpeg download failed: %s" % e, 0)
+        created = []
+        extracted = False
+        for source, url in (("gyan.dev", FFMPEG_ZIP_URL),
+                            ("GitHub (BtbN)", FFMPEG_ZIP_BACKUP_URL)):
+            try:
+                report("Downloading FFmpeg from %s..." % source, 45)
+                _download_file(url, zip_path)
+                report("Extracting FFmpeg...", 70)
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    for member in zf.namelist():
+                        name = Path(member).name
+                        if name in ('ffmpeg.exe', 'ffprobe.exe'):
+                            with zf.open(member) as src, open(bin_dir / name, 'wb') as dst:
+                                shutil.copyfileobj(src, dst)
+                            created.append(bin_dir / name)
+                            report("Extracted %s" % name, 80)
+                zip_path.unlink()
+                report("FFmpeg ready", 90)
+                extracted = True
+                break
+            except Exception as e:
+                logger.warning("FFmpeg download failed from %s: %s", source, e)
+                zip_path.unlink(missing_ok=True)
+        if not extracted:
+            for path in created:
+                path.unlink(missing_ok=True)
+            report("FFmpeg download failed", 0)
             return False
     else:
         report("FFmpeg OK", 90)
@@ -96,23 +119,25 @@ def update_ytdlp() -> None:
         # 1. Try nightly builds (yt-dlp/yt-dlp-nightly-builds)
         logger.info("Downloading latest yt-dlp nightly build...")
         try:
-            urllib.request.urlretrieve(YTDLP_NIGHTLY_URL, tmp)
+            _download_file(YTDLP_NIGHTLY_URL, tmp)
             tmp.replace(exe)
             downloaded = "nightly"
             logger.info("yt-dlp updated to latest nightly build")
         except Exception as e:
             logger.warning("Nightly download failed: %s", e)
+            tmp.unlink(missing_ok=True)
 
         # 2. Fallback to stable (yt-dlp/yt-dlp)
         if not downloaded:
             logger.info("Downloading latest yt-dlp stable build...")
             try:
-                urllib.request.urlretrieve(YTDLP_EXE_URL, tmp)
+                _download_file(YTDLP_EXE_URL, tmp)
                 tmp.replace(exe)
                 downloaded = "stable"
                 logger.info("yt-dlp updated to latest stable build")
             except Exception as e:
                 logger.warning("Stable download failed: %s", e)
+                tmp.unlink(missing_ok=True)
 
         # 3. Last resort: built-in --update
         if not downloaded:
