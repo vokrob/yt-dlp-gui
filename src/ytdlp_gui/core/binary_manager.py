@@ -28,6 +28,19 @@ def _download_file(url: str, dest: Path, timeout: int = 60) -> None:
         shutil.copyfileobj(resp, f)
 
 
+def _check_executable(path: Path, version_flag: str = '-version') -> bool:
+    """Verify a binary actually runs (detects corrupt or incompatible builds)."""
+    flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
+    try:
+        result = subprocess.run(
+            [str(path), version_flag],
+            capture_output=True, timeout=30, creationflags=flags
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def get_bin_dir() -> Path:
     if getattr(sys, 'frozen', False):
         bin_dir = Path(os.environ['LOCALAPPDATA']) / 'yt-dlp-gui' / 'bin'
@@ -60,6 +73,8 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
             size = ytdlp_path.stat().st_size
             if size < 1_000_000:
                 raise RuntimeError(f"yt-dlp.exe is truncated ({size} bytes)")
+            if not _check_executable(ytdlp_path, version_flag='--version'):
+                raise RuntimeError("yt-dlp.exe does not run on this system")
             report("yt-dlp.exe downloaded (%d MB)" % (size // 1024 // 1024), 40)
         except Exception as e:
             ytdlp_path.unlink(missing_ok=True)
@@ -73,11 +88,16 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
         zip_path = bin_dir / 'ffmpeg.zip'
         created = []
         extracted = False
-        for source, url in (("gyan.dev", FFMPEG_ZIP_URL),
-                            ("GitHub (BtbN)", FFMPEG_ZIP_BACKUP_URL)):
+        # GitHub (BtbN) first: reliable CDN, fast in most regions;
+        # gyan.dev (static build, runs on old Windows) is the fallback.
+        for source, url in (("GitHub (BtbN)", FFMPEG_ZIP_BACKUP_URL),
+                            ("gyan.dev", FFMPEG_ZIP_URL)):
             try:
                 report("Downloading FFmpeg from %s..." % source, 45)
                 _download_file(url, zip_path)
+                zip_size = zip_path.stat().st_size
+                if zip_size < 20_000_000:
+                    raise RuntimeError(f"ffmpeg.zip is truncated ({zip_size} bytes)")
                 report("Extracting FFmpeg...", 70)
                 with zipfile.ZipFile(zip_path, 'r') as zf:
                     for member in zf.namelist():
@@ -88,15 +108,22 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
                             created.append(bin_dir / name)
                             report("Extracted %s" % name, 80)
                 zip_path.unlink()
+                for path in created:
+                    if path.stat().st_size < 1_000_000:
+                        raise RuntimeError(
+                            f"{path.name} is truncated ({path.stat().st_size} bytes)")
+                if not _check_executable(ffmpeg_path):
+                    raise RuntimeError("ffmpeg.exe does not run on this system")
                 report("FFmpeg ready", 90)
                 extracted = True
                 break
             except Exception as e:
                 logger.warning("FFmpeg download failed from %s: %s", source, e)
                 zip_path.unlink(missing_ok=True)
+                for path in created:
+                    path.unlink(missing_ok=True)
+                created.clear()
         if not extracted:
-            for path in created:
-                path.unlink(missing_ok=True)
             report("FFmpeg download failed", 0)
             return False
     else:
