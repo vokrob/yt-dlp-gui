@@ -1,4 +1,5 @@
 """yt-dlp GUI"""
 
-__version__ = "2026.08.01"
+from .version import __version__, RELEASE_GIT_HEAD
+
 __author__ = "Danil Borkov"
