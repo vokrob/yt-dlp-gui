@@ -29,8 +29,19 @@ def _download_file(url: str, dest: Path, timeout: int = 60) -> None:
 
 
 def _check_executable(path: Path, version_flag: str = '-version') -> bool:
-    """Verify a binary actually runs (detects corrupt or incompatible builds)."""
+    """Verify a binary actually runs (detects corrupt or incompatible builds).
+
+    On Windows, suppress loader error dialogs (e.g. "entry point not found")
+    so incompatible builds fail silently instead of scaring the user.
+    """
     flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
+    if platform.system() == 'Windows':
+        try:
+            import ctypes
+            # SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX — inherited by children
+            ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x8000)
+        except Exception:
+            pass
     try:
         result = subprocess.run(
             [str(path), version_flag],
@@ -90,8 +101,14 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
         extracted = False
         # GitHub (BtbN) first: reliable CDN, fast in most regions;
         # gyan.dev (static build, runs on old Windows) is the fallback.
-        for source, url in (("GitHub (BtbN)", FFMPEG_ZIP_BACKUP_URL),
-                            ("gyan.dev", FFMPEG_ZIP_URL)):
+        # BtbN's recent builds require Windows 10 2004+ (build 19041);
+        # on older Windows skip straight to gyan.dev to save a download and
+        # avoid a loader error dialog when the incompatible build is validated.
+        sources = [("GitHub (BtbN)", FFMPEG_ZIP_BACKUP_URL)]
+        if platform.system() == 'Windows' and sys.getwindowsversion().build < 19041:
+            sources = []
+        sources.append(("gyan.dev", FFMPEG_ZIP_URL))
+        for source, url in sources:
             try:
                 report("Downloading FFmpeg from %s..." % source, 45)
                 _download_file(url, zip_path)

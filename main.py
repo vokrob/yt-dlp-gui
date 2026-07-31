@@ -35,24 +35,12 @@ except ImportError as e:
     print(f"Import error: {e}")
     sys.exit(1)
 
-def setup_logging():
-    """Setup basic logging"""
-    log_dir = Path.home() / ".yt-dlp-gui" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_dir / "app.log"),
-            logging.StreamHandler()
-        ]
-    )
-
 def main():
     """Start the application"""
     try:
-        setup_logging()
+        # Unified logging (AppData\yt-dlp-gui\logs) — must run before bootstrap
+        from ytdlp_gui.utils.logger import get_log_manager
+        get_log_manager()
 
         # Download missing binaries (yt-dlp, ffmpeg) before starting the GUI
         from ytdlp_gui.main import _ensure_binaries
