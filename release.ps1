@@ -10,9 +10,15 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
+# --- root directory (PSScriptRoot is empty when invoked via some hosts) ---
+$root = $PSScriptRoot
+if (-not $root) {
+    $root = (Get-Location).Path
+}
+
 # --- helpers ---
 function Get-CurrentVersion {
-    $path = Join-Path $PSScriptRoot 'src' 'ytdlp_gui' '__init__.py'
+    $path = Join-Path $root 'src\ytdlp_gui\__init__.py'
     $content = Get-Content -LiteralPath $path -Raw
     if ($content -match '__version__\s*=\s*"([^"]+)"') {
         return $matches[1]
@@ -29,7 +35,6 @@ function Update-File {
 }
 
 # --- main ---
-$root = $PSScriptRoot
 $current = Get-CurrentVersion
 $currentDate = [datetime]::ParseExact($current, 'yyyy.MM.dd', [Globalization.CultureInfo]::InvariantCulture)
 $new = $currentDate.AddDays(1).ToString('yyyy.MM.dd')
@@ -39,12 +44,12 @@ Write-Host "`nRelease $current -> $new" -ForegroundColor Cyan
 Write-Host "Tag: $tag`n" -ForegroundColor Cyan
 
 # 1. Update version in __init__.py
-$initPy = Join-Path $root 'src' 'ytdlp_gui' '__init__.py'
+$initPy = Join-Path $root 'src\ytdlp_gui\__init__.py'
 Update-File -Path $initPy -Pattern '__version__\s*=\s*"[^"]*"' -Value "__version__ = `"$new`""
 
 # 2. Update version in pyproject.toml
 $toml = Join-Path $root 'pyproject.toml'
-Update-File -Path $toml -Pattern '(?<=^version\s*=\s*")[^"]*' -Value $new
+Update-File -Path $toml -Pattern '(?m)^version\s*=\s*"[^"]*"' -Value $new
 
 # 3. Commit
 Write-Host "`n  Committing..." -NoNewline
