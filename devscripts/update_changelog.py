@@ -93,6 +93,9 @@ def render_section(version, sections, collapsible=False):
 
 def main():
     parser = argparse.ArgumentParser(description='Update CHANGELOG.md')
+    parser.add_argument(
+        '-v', '--verbose', action='count', default=0,
+        help='Increase verbosity')
     parser.add_argument('version', nargs='?', default=None)
     args = parser.parse_args()
 
