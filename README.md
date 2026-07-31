@@ -9,12 +9,9 @@ Paste a link, pick the quality, and download. No setup, everything updates itsel
 
 Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
-- Download queue that survives restarts; history with search and export (JSON/CSV)
-- Cookies read automatically from Chrome, Edge, Firefox, Opera, Safari
+- Queue that survives restarts; history with search and export (JSON/CSV)
+- Cookies read automatically from installed browsers, so age-restricted videos just work
 - Updates yt-dlp, ffmpeg and itself automatically
-- Cryptic yt-dlp errors are translated into human language
-- Settings for proxy, speed limit, file names, subtitles, thumbnails
-- Toast when a download finishes; Ctrl+V works on any keyboard layout
 
 #### Screenshots
 
