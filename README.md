@@ -11,9 +11,9 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 
 - Queue that survives restarts; history with search and export (JSON/CSV)
 - Cookies read automatically from installed browsers, so age-restricted videos just work
-- Updates yt-dlp, ffmpeg and itself automatically
+- Updates yt-dlp and itself automatically
 
-#### Screenshots
+## Screenshots
 
 ![URL Input](assets/url-input.png)
 *Paste a link and press Enter*
@@ -40,9 +40,9 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 
 1. Download the latest `.exe` from [Releases](../../releases) (~23 MB). Windows 10/11 only
 2. Run it. It is unsigned, so SmartScreen may ask you to confirm: click "More info", then "Run anyway"
-3. First launch downloads yt-dlp and ffmpeg (~130 MB, 1-2 minutes)
+3. First launch downloads yt-dlp and ffmpeg (~180 MB, a few minutes depending on your connection)
 
-Build from source:
+### Build from source
 
 ```bash
 git clone https://github.com/vokrob/yt-dlp-gui.git
