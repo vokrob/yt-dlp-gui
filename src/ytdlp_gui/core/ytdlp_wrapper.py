@@ -9,6 +9,7 @@ import re
 import sys
 import platform
 import threading
+import requests
 from pathlib import Path
 from typing import Optional, Callable, List
 
@@ -103,12 +104,6 @@ def extract_info_flat(url: str, extra_args: List[str] = None) -> Optional[dict]:
     return extract_info(url, extra_args=args, timeout=15)
 
 
-def get_formats(url: str, extra_args: List[str] = None) -> Optional[list]:
-    """Get available formats for a URL."""
-    info = extract_info(url, extra_args)
-    return info.get('formats', []) if info else None
-
-
 def is_playlist(url: str, extra_args: List[str] = None) -> bool:
     """Check if URL is a playlist."""
     info = extract_info_flat(url, extra_args)
@@ -126,6 +121,77 @@ def get_playlist_info(url: str, extra_args: List[str] = None) -> dict:
             'entries': info.get('entries', []),
         }
     return {}
+
+
+def extract_title_from_html(url: str) -> Optional[str]:
+    """Extract video title directly from YouTube HTML page."""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            # Omit Accept-Language to get original video version
+            # Don't specify Accept-Encoding to let requests handle it properly
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+        }
+
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        html = response.text
+
+        # Try multiple patterns to extract title with priorities
+        patterns = [
+            (r'<title>([^<]+)</title>', "HTML title tag", 10),
+            (r'<meta name="title" content="([^"]+)"', "meta title", 9),
+            (r'<meta property="og:title" content="([^"]+)"', "og:title meta", 9),
+            (r'"videoDetails":{"videoId":"[^"]+","title":"([^"]+)"', "videoDetails object", 8),
+            (r'<meta name="twitter:title" content="([^"]+)"', "twitter:title", 7),
+            (r'"og:title" content="([^"]+)"', "og:title content", 6),
+            (r'"title":"([^"]+)"', "JSON title field", 1),
+        ]
+
+        found_titles = []
+
+        for pattern, description, priority in patterns:
+            try:
+                match = re.search(pattern, html, re.IGNORECASE)
+                if match:
+                    title = match.group(1)
+                    # Clean up title
+                    title = title.replace('\\u0026', '&').replace('\\', '').replace('\\"', '"')
+                    # Remove " - YouTube" suffix if present
+                    if title.endswith(' - YouTube'):
+                        title = title[:-10]
+
+                    # Skip obviously bad titles
+                    if title.lower() in ['download unavailable', 'unavailable', 'error', 'blocked']:
+                        continue
+
+                    # Check if it's a valid title (not generic)
+                    if title and len(title) > 5 and 'youtube video #' not in title.lower():
+                        found_titles.append((priority, description, title))
+                        logger.info(f"Found title via {description}: {title}")
+            except Exception as e:
+                logger.warning(f"Error with pattern {description}: {e}")
+
+        # Sort by priority and return the best one
+        if found_titles:
+            found_titles.sort(key=lambda x: x[0], reverse=True)
+            _, best_desc, best_title = found_titles[0]
+            logger.info(f"Selected best title via {best_desc}: {best_title}")
+            return best_title
+
+        return None
+
+    except Exception as e:
+        logger.warning(f"Failed to extract title from HTML: {e}")
+        return None
 
 
 _PROGRESS_RE = re.compile(
@@ -151,6 +217,19 @@ def _parse_size_to_bytes(size_str: str) -> int:
     value = float(m.group(1))
     unit = m.group(2)
     return int(value * _SIZE_UNITS.get(unit, 1))
+
+
+def format_bytes(bytes_value: int) -> str:
+    """Format bytes to human readable string"""
+    if bytes_value == 0:
+        return "0 B"
+
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_value < 1024.0:
+            return f"{bytes_value:.1f} {unit}"
+        bytes_value /= 1024.0
+
+    return f"{bytes_value:.1f} PB"
 
 
 def _parse_progress(line: str) -> Optional[dict]:

@@ -66,9 +66,7 @@ class FormatDetector:
             ]
             extra = list(base_args)
             if self.cookie_manager:
-                cookie_files = self.cookie_manager._get_cookie_file_paths()
-                if cookie_files:
-                    extra.extend(['--cookies', str(cookie_files[0])])
+                self.cookie_manager.add_cookie_file_args(extra)
 
             info = ytdlp_wrapper.extract_info(url, extra_args=extra)
             
@@ -211,46 +209,6 @@ class FormatDetector:
             
         return score
         
-    def get_best_format(self, url: str, prefer_audio_only: bool = False) -> Optional[FormatInfo]:
-        """Get the best available format for a URL"""
-        try:
-            video_formats, audio_formats, _ = self.get_available_formats(url)
-            
-            if prefer_audio_only and audio_formats:
-                return audio_formats[0]  # Already sorted by quality
-            elif video_formats:
-                return video_formats[0]  # Already sorted by quality
-            elif audio_formats:
-                return audio_formats[0]  # Fallback to audio
-            else:
-                return None
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get best format: {e}")
-            return None
-            
-    def get_format_by_quality(self, url: str, quality: str) -> Optional[FormatInfo]:
-        """Get format by quality preference (e.g., '720p', '1080p', 'best', 'worst')"""
-        try:
-            video_formats, audio_formats, _ = self.get_available_formats(url)
-            
-            if quality == 'best':
-                return video_formats[0] if video_formats else None
-            elif quality == 'worst':
-                return video_formats[-1] if video_formats else None
-            else:
-                # Look for specific quality
-                for fmt in video_formats:
-                    if quality in fmt.resolution:
-                        return fmt
-                        
-                # If not found, return best
-                return video_formats[0] if video_formats else None
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get format by quality: {e}")
-            return None
-            
     def is_playlist(self, url: str) -> bool:
         """Check if URL is a playlist"""
         try:

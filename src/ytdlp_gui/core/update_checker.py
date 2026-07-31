@@ -8,9 +8,6 @@ import json
 import logging
 import platform
 import subprocess
-import tempfile
-import shutil
-from pathlib import Path
 from typing import Optional, Callable, Dict
 from packaging.version import Version, InvalidVersion
 

@@ -7,20 +7,19 @@ Date: 18.07.2025
 
 import tkinter as tk
 import customtkinter as ctk
-import threading
 import logging
-from typing import Callable, Optional, List
+from typing import Callable
+from ytdlp_gui.core import ytdlp_wrapper
 from ytdlp_gui.core.download_manager import DownloadItem, DownloadStatus
 
 class DownloadQueueFrame(ctk.CTkFrame):
     """Frame for displaying download queue as simple rows"""
 
-    def __init__(self, parent, download_manager=None, on_back_click: Callable = None, on_home_click: Callable = None):
+    def __init__(self, parent, download_manager=None, on_back_click: Callable = None):
         super().__init__(parent)
 
         self.download_manager = download_manager
         self.on_back_click = on_back_click
-        self.on_home_click = on_home_click
 
         # Store queue item widgets and their data
         self.queue_items = []
@@ -174,7 +173,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
         except Exception as e:
             # Re-enable button on error
             self.clear_button.configure(state="normal", text="Clear")
-            print(f"Error clearing downloads: {e}")
+            logging.getLogger(__name__).error(f"Error clearing downloads: {e}")
 
     def create_queue_item(self, download_item: DownloadItem, row: int):
         """Create a download item that looks like Current Download"""
@@ -242,7 +241,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
         size_text = ""
         if download_item.total_bytes > 0:
             downloaded = int(download_item.total_bytes * (download_item.progress / 100.0)) if download_item.progress else 0
-            size_text = f"{self.format_bytes(downloaded)} / {self.format_bytes(download_item.total_bytes)}"
+            size_text = f"{ytdlp_wrapper.format_bytes(downloaded)} / {ytdlp_wrapper.format_bytes(download_item.total_bytes)}"
 
         size_label = ctk.CTkLabel(
             size_frame,
@@ -334,7 +333,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
             size_text = ""
             if download_item.total_bytes > 0:
                 downloaded = int(download_item.total_bytes * (download_item.progress / 100.0)) if download_item.progress else 0
-                size_text = f"{self.format_bytes(downloaded)} / {self.format_bytes(download_item.total_bytes)}"
+                size_text = f"{ytdlp_wrapper.format_bytes(downloaded)} / {ytdlp_wrapper.format_bytes(download_item.total_bytes)}"
             size_label.configure(text=size_text)
 
         if status_label:
@@ -352,17 +351,6 @@ class DownloadQueueFrame(ctk.CTkFrame):
         }
         return texts.get(status, "Unknown")
 
-    def format_bytes(self, bytes_value: int) -> str:
-        """Format bytes to human readable string"""
-        if bytes_value == 0:
-            return "0 B"
-
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if bytes_value < 1024.0:
-                return f"{bytes_value:.1f} {unit}"
-            bytes_value /= 1024.0
-
-        return f"{bytes_value:.1f} PB"
     def refresh_queue(self):
         """Refresh the queue display"""
         if not self.download_manager:

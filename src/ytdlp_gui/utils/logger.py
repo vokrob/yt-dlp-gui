@@ -10,7 +10,6 @@ import logging.handlers
 import sys
 import os
 from pathlib import Path
-from datetime import datetime
 from typing import Optional
 
 class ColoredFormatter(logging.Formatter):
@@ -37,8 +36,6 @@ class LogManager:
     """Manages application logging"""
     
     def __init__(self, app_name: str = "yt-dlp-gui", log_dir: Optional[Path] = None):
-        self.app_name = app_name
-        
         # Determine log directory
         if log_dir:
             self.log_dir = log_dir
@@ -145,106 +142,6 @@ class LogManager:
     def get_download_logger(self) -> logging.Logger:
         """Get the download-specific logger"""
         return logging.getLogger('downloads')
-        
-    def set_console_level(self, level: str):
-        """Set the console logging level"""
-        level_map = {
-            'DEBUG': logging.DEBUG,
-            'INFO': logging.INFO,
-            'WARNING': logging.WARNING,
-            'ERROR': logging.ERROR,
-            'CRITICAL': logging.CRITICAL
-        }
-        
-        if level.upper() in level_map:
-            # Find console handler and update level
-            root_logger = logging.getLogger()
-            for handler in root_logger.handlers:
-                if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
-                    handler.setLevel(level_map[level.upper()])
-                    break
-                    
-    def cleanup_old_logs(self, days: int = 30):
-        """Clean up log files older than specified days"""
-        try:
-            cutoff_time = datetime.now().timestamp() - (days * 24 * 60 * 60)
-            
-            for log_file in self.log_dir.glob('*.log*'):
-                if log_file.stat().st_mtime < cutoff_time:
-                    log_file.unlink()
-                    
-            logger = self.get_logger(__name__)
-            logger.info(f"Cleaned up log files older than {days} days")
-            
-        except Exception as e:
-            logger = self.get_logger(__name__)
-            logger.error(f"Failed to cleanup old logs: {e}")
-            
-    def get_log_stats(self) -> dict:
-        """Get statistics about log files"""
-        stats = {
-            'log_dir': str(self.log_dir),
-            'files': {},
-            'total_size': 0
-        }
-        
-        try:
-            for log_file in self.log_dir.glob('*.log*'):
-                size = log_file.stat().st_size
-                stats['files'][log_file.name] = {
-                    'size': size,
-                    'size_mb': round(size / (1024 * 1024), 2),
-                    'modified': datetime.fromtimestamp(log_file.stat().st_mtime).isoformat()
-                }
-                stats['total_size'] += size
-                
-            stats['total_size_mb'] = round(stats['total_size'] / (1024 * 1024), 2)
-            
-        except Exception as e:
-            logger = self.get_logger(__name__)
-            logger.error(f"Failed to get log stats: {e}")
-            
-        return stats
-        
-    def export_logs(self, output_file: Path, include_patterns: list = None):
-        """Export logs to a single file"""
-        try:
-            with open(output_file, 'w', encoding='utf-8') as outfile:
-                outfile.write(f"YT-DLP GUI Log Export\n")
-                outfile.write(f"Generated: {datetime.now().isoformat()}\n")
-                outfile.write("=" * 80 + "\n\n")
-                
-                # Export each log file
-                for log_file in sorted(self.log_dir.glob('*.log')):
-                    if log_file.exists():
-                        outfile.write(f"\n{'='*20} {log_file.name} {'='*20}\n\n")
-                        
-                        try:
-                            with open(log_file, 'r', encoding='utf-8') as infile:
-                                content = infile.read()
-                                
-                                # Filter content if patterns provided
-                                if include_patterns:
-                                    lines = content.split('\n')
-                                    filtered_lines = []
-                                    for line in lines:
-                                        if any(pattern.lower() in line.lower() for pattern in include_patterns):
-                                            filtered_lines.append(line)
-                                    content = '\n'.join(filtered_lines)
-                                    
-                                outfile.write(content)
-                                
-                        except Exception as e:
-                            outfile.write(f"Error reading {log_file.name}: {e}\n")
-                            
-            logger = self.get_logger(__name__)
-            logger.info(f"Logs exported to {output_file}")
-            return True
-            
-        except Exception as e:
-            logger = self.get_logger(__name__)
-            logger.error(f"Failed to export logs: {e}")
-            return False
 
 # Global log manager instance
 _log_manager = None

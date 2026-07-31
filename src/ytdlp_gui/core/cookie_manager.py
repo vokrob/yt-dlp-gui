@@ -7,7 +7,7 @@ Date: 18.07.2025
 
 import logging
 import platform
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from pathlib import Path
 
 
@@ -69,7 +69,13 @@ class CookieManager:
         paths.append(Path.cwd() / 'cookies.txt')
 
         return [p for p in paths if p.exists()]
-        
+
+    def add_cookie_file_args(self, args: List[str]) -> None:
+        """Append --cookies argument if a cookies.txt file exists"""
+        cookie_files = self._get_cookie_file_paths()
+        if cookie_files:
+            args.extend(['--cookies', str(cookie_files[0])])
+
     def get_cookie_options(self, url: str = None, browser: str = None) -> Dict[str, Any]:
         """
         Get yt-dlp cookie options based on current settings
@@ -316,42 +322,3 @@ class CookieManager:
 
         return options
 
-    def get_cookie_status_message(self, url: str = None) -> str:
-        """Get human-readable cookie status for display to user"""
-        network_settings = self.settings_manager.get_network_settings()
-        if not network_settings.get('cookies_enabled', True):
-            return "Cookies disabled in settings"
-
-        # Try each browser
-        browsers_to_try = [network_settings.get('cookies_browser', 'chrome')]
-        for browser in self.browser_priority:
-            if browser not in browsers_to_try:
-                browsers_to_try.append(browser)
-
-        for browser in browsers_to_try:
-            if self._is_browser_available(browser):
-                return f"Cookies from browser: {browser.title()}"
-
-        # Check cookie file
-        cookie_files = self._get_cookie_file_paths()
-        if cookie_files:
-            return f"Cookies from file: {cookie_files[0].name}"
-
-        return "No cookies found. Public videos will download, for private ones place cookies.txt next to the program"
-
-    def get_available_browsers(self) -> List[str]:
-        """Get list of available browsers on the current system"""
-        available = []
-        for browser in self.browser_priority:
-            if self._is_browser_available(browser):
-                available.append(browser)
-        return available
-    
-    def test_cookie_extraction(self, browser: str) -> bool:
-        """Test if cookie extraction works for a specific browser"""
-        try:
-            # This is a simple test - in practice, yt-dlp will handle the actual extraction
-            return self._is_browser_available(browser)
-        except Exception as e:
-            self.logger.error(f"Cookie extraction test failed for {browser}: {e}")
-            return False

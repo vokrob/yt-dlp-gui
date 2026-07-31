@@ -129,11 +129,6 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         if url and self.on_url_submit:
             self.on_url_submit(url)
             
-    def _on_paste(self, event=None):
-        """Validate URL after paste (works with any keyboard layout)"""
-        self.after(10, self.on_url_entry_change)
-        return None  # Let default paste behavior handle the insert
-
     def on_paste(self, event=None):
         """Handle paste"""
         try:
@@ -163,19 +158,9 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         if self.continue_btn.cget("state") == "normal":
             self.submit_url()
             
-    def get_url(self) -> str:
-        """Get the current URL"""
-        return self.url_entry.get().strip()
-        
     def clear_url(self):
         """Clear the URL entry"""
         self.url_entry.delete(0, tk.END)
         self.update_status("", is_valid=False)
-        
-    def set_url(self, url: str):
-        """Set the URL entry"""
-        self.url_entry.delete(0, tk.END)
-        self.url_entry.insert(0, url)
-        self.on_url_entry_change()
 
 

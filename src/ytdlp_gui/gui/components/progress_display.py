@@ -3,8 +3,7 @@ Progress Display Component - Shows download progress information
 """
 
 import customtkinter as ctk
-import tkinter as tk
-from typing import Dict, Optional
+from ytdlp_gui.core import ytdlp_wrapper
 
 class ProgressDisplayFrame(ctk.CTkFrame):
     """Frame for displaying download progress"""
@@ -12,7 +11,6 @@ class ProgressDisplayFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
         
-        self.current_download = None
         self.setup_ui()
         
     def setup_ui(self):
@@ -124,8 +122,6 @@ class ProgressDisplayFrame(ctk.CTkFrame):
         
     def update_progress(self, download_item):
         """Update progress display with download item information"""
-        self.current_download = download_item
-
         if download_item:
             # Check for merger indication early
             should_show_merger = False
@@ -190,11 +186,11 @@ class ProgressDisplayFrame(ctk.CTkFrame):
 
             # Update size info with better formatting
             if download_item.total_bytes > 0:
-                downloaded = self._format_bytes(download_item.downloaded_bytes)
-                total = self._format_bytes(download_item.total_bytes)
+                downloaded = ytdlp_wrapper.format_bytes(download_item.downloaded_bytes)
+                total = ytdlp_wrapper.format_bytes(download_item.total_bytes)
                 size_text = f"{downloaded} / {total}"
             elif download_item.downloaded_bytes > 0:
-                downloaded = self._format_bytes(download_item.downloaded_bytes)
+                downloaded = ytdlp_wrapper.format_bytes(download_item.downloaded_bytes)
                 size_text = f"{downloaded} downloaded"
             else:
                 size_text = "Preparing download..."
@@ -230,7 +226,6 @@ class ProgressDisplayFrame(ctk.CTkFrame):
             
     def clear_progress(self):
         """Clear the progress display"""
-        self.current_download = None
         self.title_label.configure(text="No active download")
         self.progress_bar.set(0)
         self.progress_bar.configure(progress_color="blue")  # Reset to default color
@@ -260,17 +255,8 @@ class ProgressDisplayFrame(ctk.CTkFrame):
         # Show new download button
         self.new_download_button.grid(row=6, column=0, columnspan=2, padx=20, pady=(10, 20))
 
-    def show_info(self, message: str):
-        """Show an info message"""
-        self.status_label.configure(text=message, text_color="gray")
-        # Hide clear errors button
-        self.clear_errors_button.grid_remove()
-        # Hide new download button
-        self.new_download_button.grid_remove()
-
     def show_preparing(self, title: str = ""):
         """Show preparing download state"""
-        self.current_download = None
         display_title = title if title else "Preparing download..."
         if len(display_title) > 80:
             display_title = display_title[:77] + "..."
@@ -306,15 +292,3 @@ class ProgressDisplayFrame(ctk.CTkFrame):
             self.new_download_callback()
         self.clear_progress()
 
-    @staticmethod
-    def _format_bytes(bytes_value: int) -> str:
-        """Format bytes to human readable string"""
-        if bytes_value == 0:
-            return "0 B"
-
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if bytes_value < 1024.0:
-                return f"{bytes_value:.1f} {unit}"
-            bytes_value /= 1024.0
-
-        return f"{bytes_value:.1f} PB"

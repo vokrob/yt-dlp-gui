@@ -6,11 +6,7 @@ Date: 18.07.2025
 """
 
 import logging
-import threading
-import time
-from typing import Optional, Callable
 from enum import Enum
-import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
 
@@ -38,17 +34,9 @@ class NotificationManager:
         """Enable or disable notifications"""
         self.notifications_enabled = enabled
         
-    def show_info(self, title: str, message: str, show_toast: bool = True):
-        """Show info notification"""
-        self._show_notification(NotificationType.INFO, title, message, show_toast)
-        
     def show_success(self, title: str, message: str, show_toast: bool = True):
         """Show success notification"""
         self._show_notification(NotificationType.SUCCESS, title, message, show_toast)
-        
-    def show_warning(self, title: str, message: str, show_toast: bool = True):
-        """Show warning notification"""
-        self._show_notification(NotificationType.WARNING, title, message, show_toast)
         
     def show_error(self, title: str, message: str, show_toast: bool = True, show_dialog: bool = False):
         """Show error notification"""
@@ -264,34 +252,8 @@ class ErrorHandler:
         if show_user:
             self.notification_manager.show_error(title, user_msg, show_toast=True)
             
-    def handle_validation_error(self, field: str, message: str):
-        """Handle validation errors"""
-        title = f"Validation Error - {field}"
-        self.notification_manager.show_warning(title, message, show_toast=True)
-        
-    def handle_file_error(self, error: Exception, operation: str = "file operation"):
-        """Handle file-related errors"""
-        error_msg = str(error)
-        
-        if "permission" in error_msg.lower():
-            user_msg = f"Permission denied. Please check file/folder permissions."
-            title = "Permission Error"
-        elif "not found" in error_msg.lower():
-            user_msg = f"File or directory not found."
-            title = "File Not Found"
-        elif "space" in error_msg.lower():
-            user_msg = f"Insufficient disk space."
-            title = "Disk Space Error"
-        else:
-            user_msg = f"File operation failed: {error_msg}"
-            title = "File Error"
-            
-        self.logger.error(f"File error during {operation}: {error}", exc_info=True)
-        self.notification_manager.show_error(title, user_msg, show_toast=True)
-        
     def handle_unexpected_error(self, error: Exception, context: str = ""):
         """Handle unexpected errors"""
-        error_msg = str(error)
         title = "Unexpected Error"
         user_msg = f"An unexpected error occurred. Please try again or contact support if the problem persists."
         

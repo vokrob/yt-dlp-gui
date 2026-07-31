@@ -6,11 +6,9 @@ Date: 18.07.2025
 """
 
 import customtkinter as ctk
-import tkinter as tk
 import logging
 import threading
-from pathlib import Path
-from typing import Dict, Optional, Callable, List
+from typing import Dict, Optional, Callable
 from ytdlp_gui.core.format_detector import FormatDetector
 from tkinter import filedialog
 
@@ -252,24 +250,3 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             self.logger.info(f"Generated format_id: {format_info['format_id']}")
 
         return format_info
-        
-    def set_format(self, format_info: Dict):
-        """Set the format selection"""
-        if format_info.get('audio_only', False):
-            self.format_var.set("Audio")
-            self.on_format_change("Audio")
-        else:
-            self.format_var.set("Video")
-            self.on_format_change("Video")
-
-        if 'quality' in format_info and self.format_var.get() == "Video":
-            self.quality_var.set(format_info['quality'])
-            
-    def get_output_path(self) -> str:
-        """Get current output path"""
-        return self.settings_manager.get_output_directory()
-
-    def set_output_path(self, path: str):
-        """Set output path in settings"""
-        self.settings_manager.set('output_directory', path)
-        self.settings_manager.save_settings()

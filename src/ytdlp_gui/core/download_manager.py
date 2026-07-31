@@ -6,13 +6,10 @@ Date: 18.07.2025
 """
 
 import threading
-import queue
 import logging
 import time
 import json
-import requests
 import re
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
@@ -150,60 +147,7 @@ class DownloadManager:
         except Exception as e:
             self.logger.error(f"Failed to add download: {e}")
             raise
-            
-    def remove_download(self, download_id: str) -> bool:
-        """Remove a download from the queue"""
-        try:
-            with self.queue_lock:
-                # Find and remove the download
-                for i, item in enumerate(self.download_queue):
-                    if item.id == download_id:
-                        # Cancel if currently downloading
-                        if download_id in self.active_downloads:
-                            self._cancel_download(download_id)
-                        
-                        del self.download_queue[i]
-                        self.logger.info(f"Removed download: {download_id}")
 
-                        # Save queue and notify changes
-                        self.save_queue()
-                        self._notify_queue_change()
-                        return True
-                        
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to remove download: {e}")
-            return False
-            
-    def pause_download(self, download_id: str) -> bool:
-        """Pause a download"""
-        # Note: yt-dlp doesn't support pausing, so we'll cancel and mark as paused
-        try:
-            item = self.get_download_item(download_id)
-            if item and item.status == DownloadStatus.DOWNLOADING:
-                self._cancel_download(download_id)
-                item.status = DownloadStatus.PAUSED
-                self._notify_progress_change(download_id)
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"Failed to pause download: {e}")
-            return False
-            
-    def resume_download(self, download_id: str) -> bool:
-        """Resume a paused download"""
-        try:
-            item = self.get_download_item(download_id)
-            if item and item.status == DownloadStatus.PAUSED:
-                item.status = DownloadStatus.PENDING
-                self._process_queue()
-                return True
-            return False
-        except Exception as e:
-            self.logger.error(f"Failed to resume download: {e}")
-            return False
-            
     def get_queue(self) -> List[DownloadItem]:
         """Get the current download queue"""
         with self.queue_lock:
@@ -236,76 +180,6 @@ class DownloadManager:
         # Save queue state
         self.save_queue()
 
-    def _extract_title_from_html(self, url: str) -> Optional[str]:
-        """Extract video title directly from YouTube HTML page"""
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                # Omit Accept-Language to get original video version
-                # Don't specify Accept-Encoding to let requests handle it properly
-                'DNT': '1',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'max-age=0',
-            }
-
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            html = response.text
-
-            # Try multiple patterns to extract title with priorities
-            patterns = [
-                (r'<title>([^<]+)</title>', "HTML title tag", 10),
-                (r'<meta name="title" content="([^"]+)"', "meta title", 9),
-                (r'<meta property="og:title" content="([^"]+)"', "og:title meta", 9),
-                (r'"videoDetails":{"videoId":"[^"]+","title":"([^"]+)"', "videoDetails object", 8),
-                (r'<meta name="twitter:title" content="([^"]+)"', "twitter:title", 7),
-                (r'"og:title" content="([^"]+)"', "og:title content", 6),
-                (r'"title":"([^"]+)"', "JSON title field", 1),
-            ]
-
-            found_titles = []
-
-            for pattern, description, priority in patterns:
-                try:
-                    match = re.search(pattern, html, re.IGNORECASE)
-                    if match:
-                        title = match.group(1)
-                        # Clean up title
-                        title = title.replace('\\u0026', '&').replace('\\', '').replace('\\"', '"')
-                        # Remove " - YouTube" suffix if present
-                        if title.endswith(' - YouTube'):
-                            title = title[:-10]
-
-                        # Skip obviously bad titles
-                        if title.lower() in ['download unavailable', 'unavailable', 'error', 'blocked']:
-                            continue
-
-                        # Check if it's a valid title (not generic)
-                        if title and len(title) > 5 and 'youtube video #' not in title.lower():
-                            found_titles.append((priority, description, title))
-                            self.logger.info(f"Found title via {description}: {title}")
-                except Exception as e:
-                    self.logger.warning(f"Error with pattern {description}: {e}")
-
-            # Sort by priority and return the best one
-            if found_titles:
-                found_titles.sort(key=lambda x: x[0], reverse=True)
-                best_priority, best_desc, best_title = found_titles[0]
-                self.logger.info(f"Selected best title via {best_desc}: {best_title}")
-                return best_title
-
-            return None
-
-        except Exception as e:
-            self.logger.warning(f"Failed to extract title from HTML: {e}")
-            return None
-
     def _get_video_info(self, download_item: DownloadItem):
         """Get video information without downloading"""
         try:
@@ -327,7 +201,7 @@ class DownloadManager:
                     continue
 
             if info:
-                html_title = self._extract_title_from_html(download_item.url)
+                html_title = ytdlp_wrapper.extract_title_from_html(download_item.url)
                 if html_title:
                     title = html_title
                     self.logger.info(f"HTML title extracted: '{title}'")
@@ -336,11 +210,11 @@ class DownloadManager:
                     self.logger.warning(f"HTML extraction failed, using yt-dlp title: '{title}'")
 
                 download_item.title = title
-                download_item.file_size = self._format_bytes(info.get('filesize') or 0)
+                download_item.file_size = ytdlp_wrapper.format_bytes(info.get('filesize') or 0)
                     
         except Exception as e:
             self.logger.warning(f"Failed to get video info: {e}")
-            html_title = self._extract_title_from_html(download_item.url)
+            html_title = ytdlp_wrapper.extract_title_from_html(download_item.url)
             if html_title:
                 download_item.title = html_title
                 self.logger.info(f"Fallback HTML title extracted: '{html_title}'")
@@ -505,7 +379,6 @@ class DownloadManager:
 
         if not download_item.format_info.get('audio_only'):
             height_match = re.search(r'height<=(\d+)', format_id)
-            quality = download_item.format_info.get('quality', '')
 
             sort_args = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'ext:mp4', 'size']
             extra_args.append('--format-sort')
@@ -645,16 +518,6 @@ class DownloadManager:
 
         except Exception as e:
             self.logger.error(f"Failed to load queue: {e}")
-
-    def clear_queue_file(self):
-        """Clear the saved queue file"""
-        try:
-            if self.queue_file.exists():
-                self.queue_file.unlink()
-                self.logger.info("Queue file cleared")
-        except Exception as e:
-            self.logger.error(f"Failed to clear queue file: {e}")
-
     def _cleanup_old_failed_downloads(self):
         """Remove old failed downloads from the queue"""
         try:
@@ -683,55 +546,6 @@ class DownloadManager:
 
         except Exception as e:
             self.logger.error(f"Failed to cleanup old failed downloads: {e}")
-
-    def reorder_queue(self, item_id: str, new_position: int) -> bool:
-        """Reorder an item in the queue"""
-        try:
-            with self.queue_lock:
-                # Find the item
-                item_index = None
-                for i, item in enumerate(self.download_queue):
-                    if item.id == item_id:
-                        item_index = i
-                        break
-
-                if item_index is None:
-                    return False
-
-                # Remove item from current position
-                item = self.download_queue.pop(item_index)
-
-                # Insert at new position
-                new_position = max(0, min(new_position, len(self.download_queue)))
-                self.download_queue.insert(new_position, item)
-
-                # Save queue
-                self.save_queue()
-                self._notify_queue_change()
-
-                return True
-
-        except Exception as e:
-            self.logger.error(f"Failed to reorder queue: {e}")
-            return False
-
-    def get_queue_statistics(self) -> Dict:
-        """Get statistics about the current queue"""
-        with self.queue_lock:
-            stats = {
-                'total': len(self.download_queue),
-                'pending': 0,
-                'downloading': 0,
-                'completed': 0,
-                'failed': 0,
-                'paused': 0,
-                'cancelled': 0,
-            }
-
-            for item in self.download_queue:
-                stats[item.status.value] += 1
-
-            return stats
 
     def get_download_history(self, status_filter: Optional[str] = None, limit: Optional[int] = None):
         """Get download history from history manager"""
@@ -768,33 +582,6 @@ class DownloadManager:
             self.logger.error(f"Failed to clear failed downloads: {e}")
             return 0
 
-    def clear_completed_downloads(self):
-        """Remove all completed and failed downloads from the queue"""
-        try:
-            with self.queue_lock:
-                original_count = len(self.download_queue)
-
-                # Keep only downloads that are not completed or failed
-                self.download_queue = [
-                    item for item in self.download_queue
-                    if item.status not in [DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELLED]
-                ]
-
-                cleared_count = original_count - len(self.download_queue)
-
-                if cleared_count > 0:
-                    self.logger.info(f"Cleared {cleared_count} completed/failed downloads")
-                    # Save the cleaned queue
-                    self.save_queue()
-                    # Notify queue change
-                    self._notify_queue_change()
-
-                return cleared_count
-
-        except Exception as e:
-            self.logger.error(f"Failed to clear completed downloads: {e}")
-            return 0
-
     def clear_completed_downloads_simple(self):
         """Remove all completed and failed downloads from the queue (simple version without callbacks)"""
         try:
@@ -818,14 +605,6 @@ class DownloadManager:
             self.logger.error(f"Failed to clear completed downloads (simple): {e}")
             return 0
 
-    def search_history(self, query: str, limit: Optional[int] = None):
-        """Search download history"""
-        try:
-            return self.history_manager.search_downloads(query, limit)
-        except Exception as e:
-            self.logger.error(f"Failed to search history: {e}")
-            return []
-
     def clear_history(self, status_filter: Optional[str] = None) -> bool:
         """Clear download history"""
         try:
@@ -834,71 +613,3 @@ class DownloadManager:
             self.logger.error(f"Failed to clear history: {e}")
             return False
 
-    def get_history_statistics(self) -> Dict:
-        """Get download history statistics"""
-        try:
-            return self.history_manager.get_statistics()
-        except Exception as e:
-            self.logger.error(f"Failed to get history statistics: {e}")
-            return {}
-
-    @staticmethod
-    def _format_bytes(bytes_value: int) -> str:
-        """Format bytes to human readable string"""
-        if bytes_value == 0:
-            return "0 B"
-
-        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-            if bytes_value < 1024.0:
-                return f"{bytes_value:.1f} {unit}"
-            bytes_value /= 1024.0
-
-        return f"{bytes_value:.1f} PB"
-
-    def cancel_all_downloads(self):
-        """Cancel all active downloads and clear the queue permanently"""
-        self.logger.info("Cancelling all downloads permanently...")
-
-        try:
-            # Stop the download thread
-            self.stop_downloads()
-
-            # Cancel any active yt-dlp processes and clear queue
-            with self.queue_lock:
-                for item in self.download_queue:
-                    if item.status == DownloadStatus.DOWNLOADING:
-                        self.logger.info(f"Cancelled download: {item.url}")
-
-                # Clear the entire queue permanently
-                self.download_queue.clear()
-                self.logger.info("Download queue cleared permanently")
-
-            # Delete queue file to prevent restoration
-            try:
-                if self.queue_file.exists():
-                    self.queue_file.unlink()
-                    self.logger.info("Queue file deleted - downloads will not resume")
-            except Exception as e:
-                self.logger.error(f"Failed to delete queue file: {e}")
-                # Fallback: save empty queue
-                self.save_queue()
-                self.logger.info("Fallback: Empty queue saved")
-
-            # Notify callbacks about queue changes
-            self._notify_queue_change()
-
-        except Exception as e:
-            self.logger.error(f"Error cancelling downloads: {e}")
-
-    def stop_downloads(self):
-        """Stop the download thread"""
-        try:
-            self.running = False
-            if hasattr(self, 'download_thread') and self.download_thread and self.download_thread.is_alive():
-                self.download_thread.join(timeout=2.0)  # Wait up to 2 seconds
-                if self.download_thread.is_alive():
-                    self.logger.warning("Download thread did not stop gracefully")
-                else:
-                    self.logger.info("Download thread stopped")
-        except Exception as e:
-            self.logger.error(f"Error stopping download thread: {e}")

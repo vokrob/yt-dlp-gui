@@ -6,16 +6,12 @@ Date: 18.07.2025
 """
 
 import customtkinter as ctk
-import tkinter as tk
-from tkinter import messagebox
 import threading
 import logging
-from pathlib import Path
 import requests
 from PIL import Image
 import io
 import re
-import json
 from typing import Dict, Optional, Callable
 
 from ytdlp_gui.core.cookie_manager import CookieManager
@@ -24,11 +20,10 @@ from ytdlp_gui.core import ytdlp_wrapper
 class VideoPreviewFrame(ctk.CTkFrame):
     """Frame for displaying video preview with title and thumbnail"""
     
-    def __init__(self, parent, on_download_click: Optional[Callable] = None, settings_manager=None,
+    def __init__(self, parent, settings_manager=None,
                  on_info_loaded: Optional[Callable] = None):
         super().__init__(parent)
         self.logger = logging.getLogger(__name__)
-        self.on_download_click = on_download_click
         self.settings_manager = settings_manager
         self.on_info_loaded = on_info_loaded
 
@@ -44,75 +39,6 @@ class VideoPreviewFrame(ctk.CTkFrame):
         self.last_loaded_url = None
 
         self.setup_ui()
-
-    def _extract_title_from_html(self, url: str) -> Optional[str]:
-        """Extract video title directly from YouTube HTML page"""
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                # Don't specify Accept-Encoding to let requests handle it properly
-                'DNT': '1',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'max-age=0',
-            }
-
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            html = response.text
-
-            # Try multiple patterns to extract title with priorities
-            patterns = [
-                (r'<title>([^<]+)</title>', "HTML title tag", 10),
-                (r'<meta name="title" content="([^"]+)"', "meta title", 9),
-                (r'<meta property="og:title" content="([^"]+)"', "og:title meta", 9),
-                (r'"videoDetails":{"videoId":"[^"]+","title":"([^"]+)"', "videoDetails object", 8),
-                (r'<meta name="twitter:title" content="([^"]+)"', "twitter:title", 7),
-                (r'"og:title" content="([^"]+)"', "og:title content", 6),
-                (r'"title":"([^"]+)"', "JSON title field", 1),
-            ]
-
-            found_titles = []
-
-            for pattern, description, priority in patterns:
-                try:
-                    match = re.search(pattern, html, re.IGNORECASE)
-                    if match:
-                        title = match.group(1)
-                        # Clean up title
-                        title = title.replace('\\u0026', '&').replace('\\', '').replace('\\"', '"')
-                        # Remove " - YouTube" suffix if present
-                        if title.endswith(' - YouTube'):
-                            title = title[:-10]
-
-                        # Skip obviously bad titles
-                        if title.lower() in ['download unavailable', 'unavailable', 'error', 'blocked']:
-                            continue
-
-                        # Check if it's a valid title (not generic)
-                        if title and len(title) > 5 and 'youtube video #' not in title.lower():
-                            found_titles.append((priority, description, title))
-                            self.logger.info(f"Found title via {description}: {title}")
-                except Exception as e:
-                    self.logger.warning(f"Error with pattern {description}: {e}")
-
-            # Sort by priority and return the best one
-            if found_titles:
-                found_titles.sort(key=lambda x: x[0], reverse=True)
-                best_priority, best_desc, best_title = found_titles[0]
-                self.logger.info(f"Selected best title via {best_desc}: {best_title}")
-                return best_title
-
-            return None
-
-        except Exception as e:
-            self.logger.warning(f"Failed to extract title from HTML: {e}")
-            return None
 
     def setup_ui(self):
         """Set up the user interface"""
@@ -265,9 +191,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
             # Try once with ONLY cookies.txt if exists (no browser cookie extraction)
             extra = list(base_args)
             if self.cookie_manager:
-                cookie_files = self.cookie_manager._get_cookie_file_paths()
-                if cookie_files:
-                    extra.extend(['--cookies', str(cookie_files[0])])
+                self.cookie_manager.add_cookie_file_args(extra)
 
             info = ytdlp_wrapper.extract_info(url, extra_args=extra)
 
@@ -286,7 +210,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 title = info.get('title', 'Unknown Title')
                 if 'youtube video #' in title.lower():
                     self.logger.info("Got generic title from yt-dlp, trying HTML extraction...")
-                    html_title = self._extract_title_from_html(url)
+                    html_title = ytdlp_wrapper.extract_title_from_html(url)
                     if html_title:
                         title = html_title
                     else:
@@ -400,20 +324,6 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def _finalize_loading(self):
         """Finalize loading and show content"""
         self.show_content()
-            
-    def _format_duration(self, seconds: int) -> str:
-        """Format duration in seconds to readable string"""
-        if seconds < 60:
-            return f"{seconds}s"
-        elif seconds < 3600:
-            minutes = seconds // 60
-            secs = seconds % 60
-            return f"{minutes}:{secs:02d}"
-        else:
-            hours = seconds // 3600
-            minutes = (seconds % 3600) // 60
-            secs = seconds % 60
-            return f"{hours}:{minutes:02d}:{secs:02d}"
             
     @staticmethod
     def _clean_error_message(message: str) -> str:
