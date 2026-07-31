@@ -3,23 +3,19 @@
   yt-dlp GUI
 </h1>
 
-## Description
+Paste a link, pick the quality, and download. No setup, everything updates itself.
 
-A modern desktop GUI for downloading videos and audio from [hundreds of sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) using yt-dlp. Binaries (yt-dlp, ffmpeg) are downloaded automatically on first launch - no manual setup required.
+## What it does
 
-**Features:**
-- Downloads video as MP4 (144p to 4K) and audio as MP3
-- Download queue with persistence across restarts
-- Download history with search, statistics, and export (JSON/CSV)
-- Auto-extracts cookies from Chrome, Firefox, Edge, Opera, Safari
-- Auto-updates yt-dlp and ffmpeg on each launch
-- Self-updates the GUI itself via GitHub releases
-- User-friendly error messages (translates cryptic yt-dlp errors)
-- Settings: proxy, rate limiting, filename templates, subtitles, thumbnails
-- Toast notifications on download complete
-- Smart paste (Ctrl+V works on any keyboard layout, including Russian)
+- Videos as MP4 (144p to 4K), audio as MP3, from YouTube and hundreds of other sites
+- Download queue that survives restarts; history with search and export (JSON/CSV)
+- Reads cookies from Chrome, Edge, Firefox, Opera, Safari on its own, so age-restricted videos just work
+- Updates yt-dlp, ffmpeg and itself automatically
+- Speaks human: cryptic yt-dlp errors are translated
+- Settings for proxy, speed limit, file names, subtitles, thumbnails
+- Toast when a download finishes; Ctrl+V works on any keyboard layout
 
-### Screenshots
+## Screenshots
 
 #### URL Input
 ![URL Input](assets/url-input.png)
@@ -37,34 +33,14 @@ A modern desktop GUI for downloading videos and audio from [hundreds of sites](h
 ![Download Progress](assets/download-progress.png)
 *Watch your downloads in the queue*
 
-## Tech Stack
+## Install
 
-- **Python 3.9+** - Core language
-- **CustomTkinter** - Modern GUI framework
-- **yt-dlp** (standalone binary) - Download engine, downloaded at first run
-- **Pillow** - Image processing
-- **PyInstaller** - Executable builds
+1. Download the latest `.exe` from [Releases](../../releases) (~23 MB). Windows 10/11 (64-bit) only
+2. Run it. It is unsigned, so SmartScreen may ask you to confirm: click "More info", then "Run anyway"
+3. First launch downloads yt-dlp and ffmpeg (~130 MB, 1-2 minutes)
 
-## System Requirements
+## Build from source
 
-- **Windows 10/11** (64-bit) - Windows 8.1 and older are not supported
-- **~150 MB free disk space** - yt-dlp and ffmpeg are downloaded automatically on first launch (1-2 minutes)
-- **Network access** to github.com and gyan.dev (YouTube may require a VPN in some regions)
-- The `.exe` is unsigned - Windows SmartScreen may show a warning; click "More info - Run anyway"
-
-## Notes
-
-- Cookies are read automatically from installed browsers (Chrome, Edge, Firefox, Opera, Safari) - required for age-restricted or private videos
-- If a download fails with an auth error, export cookies via the "Get cookies.txt" browser extension and place `cookies.txt` next to `yt-dlp-gui.exe`
-
-## Installation
-
-### Pre-built executable
-1. Download the latest `.exe` from [Releases](../../releases) (~23 MB)
-2. Run `yt-dlp-gui.exe`
-3. On first launch, yt-dlp and ffmpeg binaries (~130 MB) are downloaded automatically
-
-### From source
 ```bash
 git clone https://github.com/vokrob/yt-dlp-gui.git
 cd yt-dlp-gui
@@ -72,25 +48,10 @@ pip install -r requirements.txt
 python main.py
 ```
 
-### Build executable
-```bash
-pip install pyinstaller
-python build.py
-```
+To build the exe: `pip install pyinstaller` and `python build.py`. Releases are also built automatically on version tags via GitHub Actions.
 
-Builds are also automated via GitHub Actions - pushes of version tags trigger a workflow that produces the `.exe` artifact.
+## Settings and notes
 
-## Usage
-
-1. Launch the application
-2. Paste a video URL (Ctrl+V works on any keyboard layout)
-3. Wait for the video preview to load (title, duration, thumbnail, quality options)
-4. Choose **Video** or **Audio** mode, then select desired quality
-5. Click **Start** to begin downloading
-6. Downloads appear in the queue - monitor progress, pause, or cancel
-7. Access your download history and settings from the main window
-
-## Configuration
-
-Settings are stored in `%APPDATA%\yt-dlp-gui\settings.json`. Configure via the GUI settings panel - no manual file editing required.
-
+- Settings live in `%APPDATA%\yt-dlp-gui\settings.json`; the settings window is all you need
+- If browser cookies do not work, export them with the "Get cookies.txt" extension and put `cookies.txt` next to the exe
+- YouTube may require a VPN in some regions
