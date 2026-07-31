@@ -1,9 +1,9 @@
-<#
+﻿<#
 .SYNOPSIS
     Bump version, commit, tag and push to trigger GitHub release
 .DESCRIPTION
     Usage: .\release.ps1
-    Increments version: 1 -> 2 -> 3 ...
+    Increments version: 2026.07.31 -> 2026.08.01 ...
 #>
 
 param()
@@ -31,7 +31,8 @@ function Update-File {
 # --- main ---
 $root = $PSScriptRoot
 $current = Get-CurrentVersion
-$new = [int]$current + 1
+$currentDate = [datetime]::ParseExact($current, 'yyyy.MM.dd', [Globalization.CultureInfo]::InvariantCulture)
+$new = $currentDate.AddDays(1).ToString('yyyy.MM.dd')
 $tag = "v$new"
 
 Write-Host "`nRelease $current -> $new" -ForegroundColor Cyan
