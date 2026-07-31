@@ -33,6 +33,9 @@ def render_collapsible(section):
 
 def main():
     parser = argparse.ArgumentParser(description='Render changelog as release notes')
+    parser.add_argument(
+        '-v', '--verbose', action='count', default=0,
+        help='Increase verbosity')
     parser.add_argument('--collapsible', action='store_true')
     args = parser.parse_args()
 
