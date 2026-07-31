@@ -65,7 +65,6 @@ class UpdateChecker:
         try:
             import time
             self._settings.set('last_update_check_time', time.time())
-            self._settings.set('latest_available_version', info.get('latest_version', ''))
             self._settings.set('latest_update_info', json.dumps(info))
         except Exception as e:
             self.logger.warning(f"Failed to save update cache: {e}")

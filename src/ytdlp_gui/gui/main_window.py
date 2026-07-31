@@ -83,9 +83,7 @@ class YTDLPGUIApp:
                     )
                     self.root.after(
                         0,
-                        lambda: self._show_update_button(
-                            info["latest_version"]
-                        )
+                        lambda: self._show_update_button()
                     )
             except Exception as e:
                 self.logger.warning(f"Update check failed: {e}")
@@ -145,7 +143,7 @@ class YTDLPGUIApp:
 
         threading.Thread(target=_do_update, daemon=False).start()
 
-    def _show_update_button(self, version: str):
+    def _show_update_button(self):
         """Show update button in top-right corner"""
         self.update_btn.configure(
             text="Update",

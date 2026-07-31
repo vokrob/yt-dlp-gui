@@ -197,10 +197,10 @@ class VideoPreviewFrame(ctk.CTkFrame):
 
             if not info:
                 real_error = ytdlp_wrapper.get_last_error()
-                if real_error and self._is_authentication_error(real_error, url):
-                    self.after(0, lambda msg=real_error: self._show_authentication_error(msg, url))
+                if real_error and self._is_authentication_error(real_error):
+                    self.after(0, lambda: self._show_authentication_error(url))
                 elif real_error:
-                    user_msg = self._format_user_error(real_error, url)
+                    user_msg = self._format_user_error(real_error)
                     self.after(0, lambda m=user_msg: self._show_error(m))
                 else:
                     self.after(0, lambda: self._show_error("Could not load video information"))
@@ -242,7 +242,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
             else:
                 real_error = ytdlp_wrapper.get_last_error()
                 if real_error:
-                    display_msg = self._format_user_error(real_error, url)
+                    display_msg = self._format_user_error(real_error)
                 else:
                     display_msg = "Could not load video information"
                 self.after(0, lambda m=display_msg: self._show_error(m))
@@ -341,7 +341,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
         return msg.strip()
 
     @staticmethod
-    def _format_user_error(ytdlp_error: str, url: str) -> str:
+    def _format_user_error(ytdlp_error: str) -> str:
         """Convert known yt-dlp errors to user-friendly messages."""
         clean = VideoPreviewFrame._clean_error_message(ytdlp_error)
         lower = clean.lower()
@@ -400,7 +400,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
         self.thumbnail_label.configure(text=message, wraplength=700)
         self.show_content()
 
-    def _is_authentication_error(self, error_msg: str, url: str) -> bool:
+    def _is_authentication_error(self, error_msg: str) -> bool:
         """Check if the error is related to authentication/login requirements"""
         auth_keywords = [
             "only available for registered users",
@@ -416,7 +416,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
         error_lower = error_msg.lower()
         return any(keyword in error_lower for keyword in auth_keywords)
 
-    def _show_authentication_error(self, error_msg: str, url: str):
+    def _show_authentication_error(self, url: str):
         """Show authentication error with helpful message"""
         site_name = self._get_site_name(url)
 

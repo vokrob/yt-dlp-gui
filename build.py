@@ -47,7 +47,6 @@ def check_dependencies():
         ("pyinstaller", "PyInstaller"),
         ("customtkinter", "customtkinter"),
         ("pillow", "PIL"),
-        ("psutil", "psutil")
     ]
 
     missing_packages = []
@@ -86,7 +85,6 @@ def create_pyinstaller_spec():
         "threading",
         "queue",
         "logging.handlers",
-        "psutil",
         "packaging",
         "packaging.version",
         "requests",

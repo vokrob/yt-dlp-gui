@@ -56,7 +56,6 @@ class DownloadStatus(Enum):
     DOWNLOADING = "downloading"
     COMPLETED = "completed"
     FAILED = "failed"
-    PAUSED = "paused"
     CANCELLED = "cancelled"
 
 @dataclass
