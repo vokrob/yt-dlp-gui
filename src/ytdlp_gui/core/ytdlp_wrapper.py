@@ -1,5 +1,5 @@
 """
-yt-dlp CLI wrapper — subprocess calls instead of Python API
+yt-dlp CLI wrapper - subprocess calls instead of Python API
 """
 
 import subprocess

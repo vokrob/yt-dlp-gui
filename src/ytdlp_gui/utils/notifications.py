@@ -168,7 +168,7 @@ class ToastNotification(ctk.CTkToplevel):
         # Close button
         close_btn = ctk.CTkButton(
             content_frame,
-            text="×",
+            text="x",
             width=20,
             height=20,
             font=ctk.CTkFont(size=14, weight="bold"),

@@ -5,7 +5,7 @@
 
 ## Description
 
-A modern desktop GUI for downloading videos and audio from [hundreds of sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) using yt-dlp. Binaries (yt-dlp, ffmpeg) are downloaded automatically on first launch — no manual setup required.
+A modern desktop GUI for downloading videos and audio from [hundreds of sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md) using yt-dlp. Binaries (yt-dlp, ffmpeg) are downloaded automatically on first launch - no manual setup required.
 
 **Features:**
 - Downloads video as MP4 (144p to 4K) and audio as MP3
@@ -39,22 +39,22 @@ A modern desktop GUI for downloading videos and audio from [hundreds of sites](h
 
 ## Tech Stack
 
-- **Python 3.9+** — Core language
-- **CustomTkinter** — Modern GUI framework
-- **yt-dlp** (standalone binary) — Download engine, downloaded at first run
-- **Pillow** — Image processing
-- **PyInstaller** — Executable builds
+- **Python 3.9+** - Core language
+- **CustomTkinter** - Modern GUI framework
+- **yt-dlp** (standalone binary) - Download engine, downloaded at first run
+- **Pillow** - Image processing
+- **PyInstaller** - Executable builds
 
 ## System Requirements
 
-- **Windows 10/11** (64-bit) — Windows 8.1 and older are not supported
-- **~150 MB free disk space** — yt-dlp and ffmpeg are downloaded automatically on first launch (1–2 minutes)
+- **Windows 10/11** (64-bit) - Windows 8.1 and older are not supported
+- **~150 MB free disk space** - yt-dlp and ffmpeg are downloaded automatically on first launch (1-2 minutes)
 - **Network access** to github.com and gyan.dev (YouTube may require a VPN in some regions)
-- The `.exe` is unsigned — Windows SmartScreen may show a warning; click "More info → Run anyway"
+- The `.exe` is unsigned - Windows SmartScreen may show a warning; click "More info - Run anyway"
 
 ## Notes
 
-- Cookies are read automatically from installed browsers (Chrome, Edge, Firefox, Opera, Safari) — required for age-restricted or private videos
+- Cookies are read automatically from installed browsers (Chrome, Edge, Firefox, Opera, Safari) - required for age-restricted or private videos
 - If a download fails with an auth error, export cookies via the "Get cookies.txt" browser extension and place `cookies.txt` next to `yt-dlp-gui.exe`
 
 ## Installation
@@ -78,7 +78,7 @@ pip install pyinstaller
 python build.py
 ```
 
-Builds are also automated via GitHub Actions — pushes of version tags trigger a workflow that produces the `.exe` artifact.
+Builds are also automated via GitHub Actions - pushes of version tags trigger a workflow that produces the `.exe` artifact.
 
 ## Usage
 
@@ -87,10 +87,10 @@ Builds are also automated via GitHub Actions — pushes of version tags trigger 
 3. Wait for the video preview to load (title, duration, thumbnail, quality options)
 4. Choose **Video** or **Audio** mode, then select desired quality
 5. Click **Start** to begin downloading
-6. Downloads appear in the queue — monitor progress, pause, or cancel
+6. Downloads appear in the queue - monitor progress, pause, or cancel
 7. Access your download history and settings from the main window
 
 ## Configuration
 
-Settings are stored in `%APPDATA%\yt-dlp-gui\settings.json`. Configure via the GUI settings panel — no manual file editing required.
+Settings are stored in `%APPDATA%\yt-dlp-gui\settings.json`. Configure via the GUI settings panel - no manual file editing required.
 

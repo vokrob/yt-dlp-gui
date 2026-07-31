@@ -38,7 +38,7 @@ except ImportError as e:
 def main():
     """Start the application"""
     try:
-        # Unified logging (AppData\yt-dlp-gui\logs) — must run before bootstrap
+        # Unified logging (AppData\yt-dlp-gui\logs) - must run before bootstrap
         from ytdlp_gui.utils.logger import get_log_manager
         get_log_manager()
 

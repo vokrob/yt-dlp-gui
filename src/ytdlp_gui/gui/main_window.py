@@ -395,7 +395,7 @@ class YTDLPGUIApp:
             self.logger.error(f"Traceback: {traceback.format_exc()}")
 
     def _on_video_info_loaded(self, url: str):
-        """Handle video info loaded — load formats sequentially"""
+        """Handle video info loaded - load formats sequentially"""
         self.logger.info(f"Video info loaded, now loading formats for: {url}")
         self.download_options_frame.load_video_qualities(url)
 

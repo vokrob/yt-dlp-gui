@@ -56,7 +56,7 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         self.url_entry.bind("<KeyRelease>", self.on_url_entry_change)
         self.url_entry.bind("<Return>", self.on_enter_pressed)
 
-        # Paste support — catch Ctrl+V by physical keycode (works on any layout)
+        # Paste support - catch Ctrl+V by physical keycode (works on any layout)
         self.url_entry.bind("<KeyPress>", self._on_key_press)
         self.url_entry.bind("<Button-2>", self.on_paste)
         self.url_entry.bind("<Button-3>", self.show_context_menu)
@@ -120,7 +120,7 @@ class SimpleURLInputFrame(ctk.CTkFrame):
     def _on_key_press(self, event):
         """Catch Ctrl+V by physical keycode (same on all keyboard layouts)"""
         if event.keycode == 86 and (event.state & 0x4):  # Physical V key + Ctrl
-            return self.on_paste()  # Manual paste — works on any layout
+            return self.on_paste()  # Manual paste - works on any layout
         return None
 
     def submit_url(self):

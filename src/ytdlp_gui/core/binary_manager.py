@@ -1,5 +1,5 @@
 r"""
-Binary Manager — downloads yt-dlp.exe and ffmpeg.exe on first run.
+Binary Manager - downloads yt-dlp.exe and ffmpeg.exe on first run.
 Stores binaries in %LOCALAPPDATA%\yt-dlp-gui\bin\
 """
 
@@ -38,7 +38,7 @@ def _check_executable(path: Path, version_flag: str = '-version') -> bool:
     if platform.system() == 'Windows':
         try:
             import ctypes
-            # SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX — inherited by children
+            # SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX - inherited by children
             ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x8000)
         except Exception:
             pass

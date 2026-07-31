@@ -352,7 +352,7 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 "Wait for a new yt-dlp release (usually 1-2 days)."
             ),
             "failed to extract any player response": (
-                "YouTube changed its API — extraction is unavailable.\n\n"
+                "YouTube changed its API - extraction is unavailable.\n\n"
                 "The app already downloaded the latest yt-dlp build, but YouTube\n"
                 "requires another update. yt-dlp usually releases a patch in 1-2 days."
             ),

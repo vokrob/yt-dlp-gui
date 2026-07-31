@@ -55,7 +55,7 @@ class CookieManager:
         """Find cookies.txt file locations to try"""
         paths = []
 
-        # If running as frozen exe — check next to the exe first
+        # If running as frozen exe - check next to the exe first
         import sys
         if getattr(sys, 'frozen', False):
             paths.append(Path(sys.executable).parent / 'cookies.txt')

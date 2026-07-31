@@ -57,7 +57,7 @@ def _ensure_binaries():
         except:
             pass
 
-        tk.Label(root, text="First launch — downloading components...",
+        tk.Label(root, text="First launch - downloading components...",
                  fg='#e0e0e0', bg='#1a1a2e', font=('Segoe UI', 12)).pack(pady=(20, 5))
         status = tk.Label(root, text="", fg='#a0a0a0', bg='#1a1a2e', font=('Segoe UI', 9))
         status.pack(pady=(0, 10))

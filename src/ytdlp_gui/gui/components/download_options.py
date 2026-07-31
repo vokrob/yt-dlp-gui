@@ -69,7 +69,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         )
         self.quality_dropdown.grid(row=0, column=1)
 
-        # Save path row — centered under options
+        # Save path row - centered under options
         path_frame = ctk.CTkFrame(self, fg_color="transparent")
         path_frame.grid(row=1, column=0, pady=(0, 10))
 
