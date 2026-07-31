@@ -54,12 +54,12 @@ Update-File -Path $toml -Pattern '(?m)^version\s*=\s*"[^"]*"' -NewValue "version
 # 3. Commit
 Write-Host "`n  Committing..." -NoNewline
 git -C $root add "$initPy" "$toml"
-git -C $root commit -m "v$new"
+git -C $root commit -m "chore(release): $tag"
 Write-Host " done" -ForegroundColor Green
 
-# 4. Tag
+# 4. Tag (annotated)
 Write-Host "  Tagging..." -NoNewline
-git -C $root tag $tag
+git -C $root tag -a $tag -m "Release $tag"
 Write-Host " done ($tag)" -ForegroundColor Green
 
 # 5. Push
