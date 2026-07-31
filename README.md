@@ -7,7 +7,7 @@ Paste a link, pick the quality, and download. No setup, everything updates itsel
 
 ## What it does
 
-- Videos as MP4 (144p to 4K), audio as MP3, from YouTube and hundreds of other sites
+- Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 - Download queue that survives restarts; history with search and export (JSON/CSV)
 - Reads cookies from Chrome, Edge, Firefox, Opera, Safari on its own, so age-restricted videos just work
 - Updates yt-dlp, ffmpeg and itself automatically
