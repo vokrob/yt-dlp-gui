@@ -72,7 +72,7 @@ class YTDLPGUIApp:
         self._check_updates()
 
     def _check_updates(self):
-        """Check for updates in background thread, then schedule next check in 1 hour"""
+        """Check for updates in background thread, then schedule next check in 6 hours"""
         def _check():
             try:
                 info = self.update_checker.check()
@@ -89,7 +89,7 @@ class YTDLPGUIApp:
                 self.logger.warning(f"Update check failed: {e}")
 
         threading.Thread(target=_check, daemon=True).start()
-        self.root.after(3600000, self._check_updates)
+        self.root.after(21600000, self._check_updates)
 
     def _on_update_download(self):
         """Handle update button click - download and apply update"""
