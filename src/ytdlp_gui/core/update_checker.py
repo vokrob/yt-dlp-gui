@@ -49,18 +49,14 @@ class UpdateChecker:
             if elapsed < CACHE_TTL:
                 cached = self._settings.get('latest_update_info', '')
                 if cached:
-                    result = json.loads(cached)
-                    if result.get("available"):
-                        return result
+                    return json.loads(cached)
         except Exception as e:
             self.logger.warning(f"Failed to load update cache: {e}")
         return None
 
     def _save_cache(self, info: dict):
-        """Save update info to settings cache (only if update available)"""
+        """Save update info to settings cache"""
         if not self._settings:
-            return
-        if not info.get("available"):
             return
         try:
             import time
