@@ -3,7 +3,7 @@
   <sup>yt-dlp GUI</sup>
 </h1>
 
-<video src="assets/demo.mp4" controls autoplay muted loop></video>
+<video src="https://github.com/user-attachments/assets/99dd7a70-c000-4da1-91b3-d60fafb155c7"></video>
 
 Paste a link, pick the quality, and download. No setup, everything updates itself
 
