@@ -3,7 +3,7 @@
     Bump version, commit, tag and push to trigger GitHub release
 .DESCRIPTION
     Usage: .\release.ps1
-    Increments version: 2026.07.31 -> 2026.08.01 ...
+    Sets version to the actual release date: 2026.08.01 -> 2026.08.20 ...
 #>
 
 param()
@@ -17,15 +17,6 @@ if (-not $root) {
 }
 
 # --- helpers ---
-function Get-CurrentVersion {
-    $path = Join-Path $root 'src\ytdlp_gui\__init__.py'
-    $content = Get-Content -LiteralPath $path -Raw
-    if ($content -match '__version__\s*=\s*"([^"]+)"') {
-        return $matches[1]
-    }
-    throw "Could not parse version from __init__.py"
-}
-
 function Update-File {
     param([string]$Path, [string]$Pattern, [string]$NewValue)
     $content = Get-Content -LiteralPath $Path -Raw
@@ -35,12 +26,10 @@ function Update-File {
 }
 
 # --- main ---
-$current = Get-CurrentVersion
-$currentDate = [datetime]::ParseExact($current, 'yyyy.MM.dd', [Globalization.CultureInfo]::InvariantCulture)
-$new = $currentDate.AddDays(1).ToString('yyyy.MM.dd')
+$new = (Get-Date).ToString('yyyy.MM.dd')
 $tag = "v$new"
 
-Write-Host "`nRelease $current -> $new" -ForegroundColor Cyan
+Write-Host "`nRelease: $new" -ForegroundColor Cyan
 Write-Host "Tag: $tag`n" -ForegroundColor Cyan
 
 # 1. Update version in __init__.py
