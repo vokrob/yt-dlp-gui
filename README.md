@@ -1,9 +1,11 @@
 <h1>
-  <img src="logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px;" />
+  <img src="assets/logo.png?v=2" width="32" height="32" style="vertical-align: text-bottom; margin-right: 8px;" />
   <sup>yt-dlp GUI</sup>
 </h1>
 
-Paste a link, pick the quality, and download. No setup, everything updates itself.
+<video src="assets/demo.mp4" controls autoplay muted loop></video>
+
+Paste a link, pick the quality, and download. No setup, everything updates itself
 
 ## Description
 
@@ -12,21 +14,6 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 - Queue that survives restarts; history with search and export (JSON/CSV)
 - Cookies read automatically from installed browsers, so age-restricted videos just work
 - Updates yt-dlp and itself automatically
-
-## Screenshots
-
-![URL Input](assets/url-input.png)
-*Paste a link and press Enter*
-
----
-
-![Video Preview](assets/video-preview.png)
-*Choose your quality, format, and save location*
-
----
-
-![Download Progress](assets/download-progress.png)
-*Track your downloads*
 
 ## Tech Stack
 
@@ -57,7 +44,7 @@ To build the exe: `pip install pyinstaller`, then `python build.py`. Releases ar
 
 1. Launch the app and paste a video URL
 2. Wait for the preview to load (title, duration, thumbnail, quality options)
-3. Choose Video or Audio, pick the quality, press Start
+3. Choose Video or Audio, pick the quality and save location, press Start
 4. Watch progress in the queue; pause or cancel anytime
 5. History, statistics and settings are in the main window
 

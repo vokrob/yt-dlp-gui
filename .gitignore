@@ -140,6 +140,7 @@ dmypy.json
 test_*
 debug_*
 *.mp4
+!assets/demo.mp4
 *.webm
 *.m4a
 *.mp3
