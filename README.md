@@ -50,3 +50,7 @@ To build the exe: `pip install pyinstaller`, then `python build.py`. Releases ar
 
 - If browser cookies do not work, export them with the "Get cookies.txt" extension and put `cookies.txt` next to the exe
 - YouTube may require a VPN in some regions
+
+## Troubleshooting
+
+If updating in-app fails with `Security validation failure: parent process has different executable!`, update manually once: close the app, download the latest `.exe` from [Releases](../../releases) and replace the old file, then run it. Self-updates work again afterwards. (Only affects builds from before the fix.)

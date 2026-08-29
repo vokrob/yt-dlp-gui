@@ -187,6 +187,20 @@ class UpdateChecker:
         else:
             self._apply_unix(new_exe_path, old_exe, parent_pid, update_dir)
 
+    def _clean_env(self) -> dict:
+        """Return environment without PyInstaller bootloader internals (_PYI_*).
+
+        If these leak into the updater subprocesses, a freshly launched copy of
+        this exe inherits them and PyInstaller 6.22.1+ treats it as a child of
+        a onefile process, then fails parent-process validation with
+        "Security validation failure: parent process has different executable!".
+        """
+        return {
+            key: value
+            for key, value in os.environ.items()
+            if not key.startswith('_PYI_')
+        }
+
     def _apply_windows(self, new_exe: str, old_exe: str, parent_pid: int, update_dir: str):
         ps_script = (
             f"$parent = {parent_pid}\n"
@@ -215,7 +229,7 @@ class UpdateChecker:
             "-ExecutionPolicy", "Bypass",
             "-WindowStyle", "Hidden",
             "-File", ps_file
-        ])
+        ], env=self._clean_env())
 
     def _apply_unix(self, new_exe: str, old_exe: str, parent_pid: int, update_dir: str):
         sh_script = (
@@ -235,4 +249,4 @@ class UpdateChecker:
         with open(sh_file, "w") as f:
             f.write(sh_script)
         os.chmod(sh_file, 0o755)
-        subprocess.Popen(["bash", sh_file], start_new_session=True)
+        subprocess.Popen(["bash", sh_file], start_new_session=True, env=self._clean_env())
