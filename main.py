@@ -7,6 +7,7 @@ YT-DLP GUI - Video & Audio Downloader
 import sys
 import os
 import logging
+import threading
 from pathlib import Path
 
 def setup_paths():
@@ -47,14 +48,19 @@ def main():
         if not _ensure_binaries():
             sys.exit(1)
 
-        # Auto-update yt-dlp before launching GUI (synchronous)
-        try:
-            from ytdlp_gui.core import binary_manager
-            binary_manager.update_ytdlp()
-        except Exception:
-            pass
-
         app = YTDLPGUIApp()
+
+        # Auto-update yt-dlp in the background so a slow or blocked GitHub
+        # doesn't leave the process running with no visible window at startup.
+        def _update_ytdlp():
+            try:
+                from ytdlp_gui.core import binary_manager
+                binary_manager.update_ytdlp()
+            except Exception:
+                pass
+
+        threading.Thread(target=_update_ytdlp, daemon=True).start()
+
         app.run()
     except Exception as e:
         logging.error(f"App failed to start: {e}")

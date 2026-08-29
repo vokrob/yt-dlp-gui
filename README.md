@@ -50,3 +50,7 @@ To build the exe: `pip install pyinstaller`, then `python build.py`. Releases ar
 
 - If browser cookies do not work, export them with the "Get cookies.txt" extension and put `cookies.txt` next to the exe
 - YouTube may require a VPN in some regions
+
+## Logs & Troubleshooting
+
+Logs are written to `%APPDATA%\yt-dlp-gui\logs\` (app.log, error.log, downloads.log). If a download fails, send these files when reporting an issue. Settings and the download queue live in `%APPDATA%\yt-dlp-gui\`.

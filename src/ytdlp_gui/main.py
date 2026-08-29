@@ -6,6 +6,7 @@ Date: 18.07.2025
 """
 
 import sys
+import os
 import logging
 import threading
 from pathlib import Path
@@ -15,7 +16,15 @@ from .gui.main_window import YTDLPGUIApp
 
 def setup_logging():
     """Setup logging"""
-    log_dir = Path.home() / ".yt-dlp-gui" / "logs"
+    if os.name == 'nt':
+        base_dir = Path(os.environ.get('APPDATA', Path.home()))
+    elif 'darwin' in os.uname().sysname.lower():
+        base_dir = Path.home() / 'Library' / 'Application Support'
+    elif os.name == 'posix':
+        base_dir = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+    else:
+        base_dir = Path.home()
+    log_dir = base_dir / "yt-dlp-gui" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
@@ -98,14 +107,19 @@ def main():
         if not _ensure_binaries():
             sys.exit(1)
 
-        # Auto-update yt-dlp before launching GUI (synchronous)
-        try:
-            from .core import binary_manager
-            binary_manager.update_ytdlp()
-        except Exception:
-            pass
-
         app = YTDLPGUIApp()
+
+        # Auto-update yt-dlp in the background so a slow or blocked GitHub
+        # doesn't leave the process running with no visible window at startup.
+        def _update_ytdlp():
+            try:
+                from .core import binary_manager
+                binary_manager.update_ytdlp()
+            except Exception:
+                pass
+
+        threading.Thread(target=_update_ytdlp, daemon=True).start()
+
         app.run()
     except Exception as e:
         logging.error("Failed to start: %s", e)
