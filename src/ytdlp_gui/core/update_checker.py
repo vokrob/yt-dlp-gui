@@ -40,16 +40,34 @@ class UpdateChecker:
         return getattr(sys, 'frozen', False)
 
     def _load_cache(self) -> Optional[Dict]:
-        """Load cached update info from settings"""
+        """Load cached update info from settings.
+
+        The cache is only trusted if it was produced by the current build.
+        A stale cache from an older version (that found an update) must be
+        discarded, otherwise the "Update" button keeps showing forever after
+        a successful self-update.
+        """
         if not self._settings:
             return None
         try:
             last_check = self._settings.get('last_update_check_time', 0.0)
             elapsed = __import__('time').time() - last_check
-            if elapsed < CACHE_TTL:
-                cached = self._settings.get('latest_update_info', '')
-                if cached:
-                    return json.loads(cached)
+            if elapsed >= CACHE_TTL:
+                return None
+
+            cached = self._settings.get('latest_update_info', '')
+            if not cached:
+                return None
+
+            info = json.loads(cached)
+            if info.get("current_version") != __version__:
+                self.logger.info(
+                    "Discarding update cache from a different version "
+                    f"({info.get('current_version')} != {__version__})"
+                )
+                return None
+
+            return info
         except Exception as e:
             self.logger.warning(f"Failed to load update cache: {e}")
         return None
