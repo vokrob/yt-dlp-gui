@@ -10,6 +10,8 @@ from enum import Enum
 from tkinter import messagebox
 import customtkinter as ctk
 
+from ytdlp_gui.utils.error_translations import translate_error
+
 class NotificationType(Enum):
     """Types of notifications"""
     INFO = "info"
@@ -226,7 +228,7 @@ class ErrorHandler:
         
     def handle_download_error(self, error: Exception, url: str = "", show_user: bool = True):
         """Handle download-related errors"""
-        error_msg = str(error)
+        error_msg = str(error).strip()
         
         # Categorize error types
         if "network" in error_msg.lower() or "connection" in error_msg.lower():
@@ -242,7 +244,15 @@ class ErrorHandler:
             user_msg = "The requested format is not available for this video."
             title = "Format Error"
         else:
-            user_msg = f"Download failed: {error_msg}"
+            if not error_msg:
+                user_msg = ("Download failed without an error message. "
+                            "Check your internet connection and try again, or check the app log for details.")
+            else:
+                friendly = translate_error(error)
+                if friendly != error_msg:
+                    user_msg = friendly
+                else:
+                    user_msg = f"Download failed: {error_msg}"
             title = "Download Error"
             
         # Log the full error

@@ -273,9 +273,26 @@ def download(url: str, output_path: str, format_spec: str,
 
     logger.debug(f"Download command: {_cmd_str(cmd)}")
     flags = _create_no_window_flag()
+    stderr_lines = []
+    last_error_line = ''
     try:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 creationflags=flags)
+
+        def _collect_stderr():
+            for raw_line in iter(proc.stderr.readline, b''):
+                line = raw_line.decode('utf-8', errors='replace').strip()
+                if not line:
+                    continue
+                stderr_lines.append(line)
+                # Keep only the last ~1000 chars so we don't grow unbounded
+                total = sum(len(l) for l in stderr_lines)
+                while total > 1000 and len(stderr_lines) > 1:
+                    total -= len(stderr_lines.pop(0))
+
+        stderr_thread = threading.Thread(target=_collect_stderr, daemon=True)
+        stderr_thread.start()
+
         for raw_line in iter(proc.stdout.readline, b''):
             try:
                 line = raw_line.decode('utf-8').strip()
@@ -286,6 +303,7 @@ def download(url: str, output_path: str, format_spec: str,
 
             if 'ERROR:' in line:
                 logger.error(f"yt-dlp: {line[:300]}")
+                last_error_line = line
 
             progress = _parse_progress(line)
             if progress:
@@ -293,12 +311,30 @@ def download(url: str, output_path: str, format_spec: str,
                     progress_callback(progress)
 
         proc.wait()
+        stderr_thread.join(timeout=2.0)
+        try:
+            proc.stderr.close()
+        except Exception:
+            pass
         if progress_callback:
             progress_callback({'percent': 100.0 if proc.returncode == 0 else 0})
+
+        # Surface the real yt-dlp error so the UI can show an actual reason
+        if proc.returncode == 0:
+            _set_last_error('')
+        else:
+            reason = '\n'.join(stderr_lines[-3:]).strip()
+            if not reason:
+                reason = last_error_line.strip()
+            if not reason:
+                reason = f"yt-dlp exited with code {proc.returncode}"
+            _set_last_error(reason)
+
         return proc.returncode
 
     except Exception as e:
         logger.error(f"yt-dlp download failed: {e}")
+        _set_last_error(str(e) or f"yt-dlp download failed: {e}")
         if progress_callback:
             progress_callback({'error': str(e)})
         return -1

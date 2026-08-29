@@ -362,6 +362,12 @@ class VideoPreviewFrame(ctk.CTkFrame):
                 "- private\n"
                 "- blocked in your region"
             ),
+            "video is unavailable": (
+                "Video unavailable. It may be:\n"
+                "- deleted by the author or YouTube\n"
+                "- private\n"
+                "- blocked in your region"
+            ),
             "incomplete youtube id": (
                 "Invalid video URL. Please check the link."
             ),
