@@ -158,9 +158,13 @@ class DownloadManager:
             info = None
             for browser in ['chrome', 'firefox', 'edge', None]:
                 extra = list(base_args)
-                cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
-                if cookie_opts:
-                    extra.extend(cookie_opts_to_cli(cookie_opts))
+                if browser is None:
+                    # DPAPI workaround: try without browser cookies (cookies.txt only)
+                    self.cookie_manager.add_cookie_file_args(extra)
+                else:
+                    cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
+                    if cookie_opts:
+                        extra.extend(cookie_opts_to_cli(cookie_opts))
                 try:
                     info = ytdlp_wrapper.extract_info(download_item.url, extra_args=extra)
                     if info:
@@ -230,13 +234,17 @@ class DownloadManager:
             
     def _download_worker(self, download_item: DownloadItem):
         """Worker thread for downloading"""
+        # Last item (None) is a fallback attempt without browser cookies:
+        # Chrome/Edge use App Bound Encryption (DPAPI) which yt-dlp cannot
+        # decrypt, so most videos still download fine without cookies.
         cookie_browsers = ['chrome', 'firefox', 'edge', None]
         last_error = None
         success = False
 
         for browser in cookie_browsers:
             try:
-                extra_args, format_spec, output_path = self._prepare_ydl_options(download_item, browser=browser)
+                extra_args, format_spec, output_path = self._prepare_ydl_options(
+                    download_item, browser=browser, use_cookies=browser is not None)
 
                 def progress_callback(p):
                     self._on_subprocess_progress(p, download_item.id)
@@ -276,7 +284,10 @@ class DownloadManager:
                 error_msg = str(e).lower()
                 self.logger.warning(f"Download attempt with {browser or 'no cookies'} failed: {e}")
 
-                if any(kw in error_msg for kw in ['sign in', 'confirm you', 'bot', 'cookie', '403', 'forbidden']):
+                if any(kw in error_msg for kw in [
+                    'sign in', 'confirm you', 'bot', 'cookie', '403', 'forbidden',
+                    'dpapi', 'failed to decrypt',
+                ]):
                     if browser is not None:
                         self.logger.info(f"Auth/access issue with {browser}, trying next browser...")
                         continue
@@ -329,7 +340,7 @@ class DownloadManager:
         except Exception as e:
             self.logger.error(f"Subprocess progress error: {e}")
 
-    def _prepare_ydl_options(self, download_item: DownloadItem, browser: str = None):
+    def _prepare_ydl_options(self, download_item: DownloadItem, browser: str = None, use_cookies: bool = True):
         """Prepare yt-dlp CLI arguments. Returns (extra_args, format_spec, output_template)."""
         output_path = Path(download_item.output_path)
         output_template = str(output_path / '%(title)s.%(ext)s')
@@ -371,9 +382,13 @@ class DownloadManager:
             extra_args.extend(['--extract-audio', '--audio-format', audio_fmt, '--audio-quality', audio_quality])
             format_id = 'bestaudio/best'
 
-        cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
-        if cookie_opts:
-            extra_args.extend(cookie_opts_to_cli(cookie_opts))
+        if use_cookies:
+            cookie_opts = self.cookie_manager.get_cookie_options(download_item.url, browser=browser)
+            if cookie_opts:
+                extra_args.extend(cookie_opts_to_cli(cookie_opts))
+        else:
+            # DPAPI workaround: only use a plain cookies.txt, no browser cookies
+            self.cookie_manager.add_cookie_file_args(extra_args)
 
         return extra_args, format_id, output_template
 

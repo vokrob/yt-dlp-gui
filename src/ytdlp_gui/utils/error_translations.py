@@ -7,6 +7,7 @@ Author: vokrob
 import re
 
 ERROR_TRANSLATIONS = [
+    (r'failed to decrypt with DPAPI', 'Browser cookies are encrypted (Chrome/Edge App Bound Encryption) and cannot be read. Public videos download fine without cookies; for login-only videos export cookies via the "Get cookies.txt" extension and place cookies.txt next to the app'),
     (r'unable to download video data.*HTTP Error 403', 'YouTube blocked the download. Browser cookies are outdated - export new ones via Get cookies.txt extension and place cookies.txt next to the program'),
     (r'Unable to download M3U8|Failed to download M3U8|m3u8.*(?:error|failed)', 'Could not download the stream (HLS). The video may be region-locked or need cookies - try adding cookies.txt next to the program'),
     (r'Unable to download (?:fragment|segment).*HTTP Error 40[13]', 'Stream fragment blocked (HTTP 40x). Try adding cookies.txt next to the program'),
