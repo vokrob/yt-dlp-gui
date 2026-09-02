@@ -33,14 +33,14 @@ class YTDLPGUIApp:
     def __init__(self):
         init_logging()
         self.logger = get_logger(__name__)
-        self.logger.info("[STARTUP] building SettingsManager")
+        self.logger.debug("[STARTUP] building SettingsManager")
         flush_logs()
 
         self.settings_manager = SettingsManager()
-        self.logger.info("[STARTUP] building DownloadManager")
+        self.logger.debug("[STARTUP] building DownloadManager")
         flush_logs()
         self.download_manager = DownloadManager(self.settings_manager)
-        self.logger.info("[STARTUP] DownloadManager ready")
+        self.logger.debug("[STARTUP] DownloadManager ready")
         flush_logs()
 
         self.notification_manager = None
@@ -56,20 +56,20 @@ class YTDLPGUIApp:
         self.preview_container = None
 
         # Main window
-        self.logger.info("[STARTUP] creating CTk window")
+        self.logger.debug("[STARTUP] creating CTk window")
         flush_logs()
         self.root = ctk.CTk()
-        self.logger.info("[STARTUP] CTk window created")
+        self.logger.debug("[STARTUP] CTk window created")
         flush_logs()
         self.root.title("yt-dlp GUI")
         self.root.geometry("1200x750")
         self.root.minsize(1000, 650)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        self.logger.info("[STARTUP] setting up UI")
+        self.logger.debug("[STARTUP] setting up UI")
         flush_logs()
         self.setup_ui()
-        self.logger.info("[STARTUP] UI ready")
+        self.logger.debug("[STARTUP] UI ready")
         flush_logs()
         self.setup_bindings()
 
@@ -587,7 +587,7 @@ class YTDLPGUIApp:
 
     def run(self):
         """Start the application"""
-        self.logger.info("[STARTUP] entering mainloop")
+        self.logger.debug("[STARTUP] entering mainloop")
         flush_logs()
         self.logger.info("Starting GUI application")
         self.root.mainloop()

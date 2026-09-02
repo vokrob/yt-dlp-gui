@@ -468,7 +468,7 @@ class DownloadManager:
                     item_dict['status'] = item.status.value
                     queue_data.append(item_dict)
 
-            self.logger.info(f"[STARTUP] save_queue: writing {len(queue_data)} items")
+            self.logger.debug("[STARTUP] save_queue: writing %d items", len(queue_data))
             flush_logs()
 
             if not self._write_json_with_timeout(self.queue_file, queue_data):
@@ -529,7 +529,7 @@ class DownloadManager:
 
             # Clean up old failed downloads (older than 24 hours)
             self._cleanup_old_failed_downloads()
-            self.logger.info("[STARTUP] load_queue: cleanup done")
+            self.logger.debug("[STARTUP] load_queue: cleanup done")
             flush_logs()
 
             # Start processing queue
