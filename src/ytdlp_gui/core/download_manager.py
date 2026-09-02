@@ -9,7 +9,6 @@ import threading
 import logging
 import time
 import json
-import re
 from pathlib import Path
 from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
@@ -361,22 +360,12 @@ class DownloadManager:
         ]
 
         if not download_item.format_info.get('audio_only'):
-            height_match = re.search(r'height<=(\d+)', format_id)
-
             sort_args = ['res', 'fps', 'vcodec:h264', 'acodec:m4a', 'ext:mp4', 'size']
             extra_args.append('--format-sort')
             extra_args.append(','.join(sort_args))
 
-            if height_match:
-                height = int(height_match.group(1))
-                if height > 1080:
-                    extra_args.append('--remux-video')
-                    extra_args.append('mp4')
-                    extra_args.append('--postprocessor-args')
-                    extra_args.append('ffmpeg:-c:v libx264 -c:a copy -preset ultrafast -pix_fmt yuv420p')
-            else:
-                extra_args.append('--remux-video')
-                extra_args.append('mp4')
+            extra_args.append('--remux-video')
+            extra_args.append('mp4')
         else:
             audio_fmt = download_item.format_info.get('audio_format', 'mp3')
             audio_quality = download_item.format_info.get('audio_quality', '192')
