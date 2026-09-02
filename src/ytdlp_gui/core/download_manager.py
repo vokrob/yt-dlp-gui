@@ -19,6 +19,7 @@ import uuid
 from .cookie_manager import CookieManager, cookie_opts_to_cli
 from . import ytdlp_wrapper
 from ytdlp_gui.utils.error_translations import translate_error
+from ytdlp_gui.utils.logger import flush_logs
 
 class DownloadStatus(Enum):
     PENDING = "pending"
@@ -427,6 +428,30 @@ class DownloadManager:
             # Fallback to home directory
             return Path.home() / '.yt-dlp-gui' / 'download_queue.json'
 
+    def _write_json_with_timeout(self, path: Path, data, timeout: float = 3.0) -> bool:
+        """Write JSON to disk in a worker thread with a hard timeout.
+
+        A hung or redirected filesystem (OneDrive, network share, aggressive
+        antivirus) can block a plain `open(...).close()` forever on the main
+        thread. Running the write in a daemon thread and joining with a timeout
+        guarantees startup can never freeze on queue persistence. Returns True
+        if the write completed.
+        """
+        result = [False]
+
+        def _do_write():
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                result[0] = True
+            except Exception:
+                pass
+
+        thread = threading.Thread(target=_do_write, daemon=True)
+        thread.start()
+        thread.join(timeout)
+        return result[0]
+
     def save_queue(self):
         """Save the current queue to file"""
         try:
@@ -443,14 +468,19 @@ class DownloadManager:
                     item_dict['status'] = item.status.value
                     queue_data.append(item_dict)
 
-            # Save to file
-            with open(self.queue_file, 'w', encoding='utf-8') as f:
-                json.dump(queue_data, f, indent=2, ensure_ascii=False)
+            self.logger.info(f"[STARTUP] save_queue: writing {len(queue_data)} items")
+            flush_logs()
+
+            if not self._write_json_with_timeout(self.queue_file, queue_data):
+                self.logger.warning("[STARTUP] save_queue: write did not finish in time, skipping")
+                return
 
             self.logger.info(f"Queue saved with {len(queue_data)} items")
+            flush_logs()
 
         except Exception as e:
             self.logger.error(f"Failed to save queue: {e}")
+            flush_logs()
 
     def load_queue(self):
         """Load the queue from file"""
@@ -495,9 +525,12 @@ class DownloadManager:
                 self.download_queue = loaded_items
 
             self.logger.info(f"Loaded queue with {len(loaded_items)} items")
+            flush_logs()
 
             # Clean up old failed downloads (older than 24 hours)
             self._cleanup_old_failed_downloads()
+            self.logger.info("[STARTUP] load_queue: cleanup done")
+            flush_logs()
 
             # Start processing queue
             self._process_queue()
@@ -527,8 +560,10 @@ class DownloadManager:
 
                 if cleaned_count > 0:
                     self.logger.info(f"Cleaned up {cleaned_count} old failed downloads")
-                    # Save the cleaned queue
-                    self.save_queue()
+                    # Note: no save_queue() here - persisting the queue during
+                    # startup cleanup can hang on a stuck filesystem before the
+                    # window is shown. The queue is re-saved on any real change
+                    # (add_download / clear_failed_downloads / on exit).
 
         except Exception as e:
             self.logger.error(f"Failed to cleanup old failed downloads: {e}")

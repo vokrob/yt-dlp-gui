@@ -21,7 +21,7 @@ from ytdlp_gui.gui.components.simple_url_input import SimpleURLInputFrame
 from ytdlp_gui.gui.components.video_preview import VideoPreviewFrame
 from ytdlp_gui.gui.components.download_options import DownloadOptionsFrame
 from ytdlp_gui.utils.notifications import init_notifications, get_error_handler
-from ytdlp_gui.utils.logger import init_logging, get_logger
+from ytdlp_gui.utils.logger import init_logging, get_logger, flush_logs
 
 ctk.set_appearance_mode("dark")
 theme_path = Path(__file__).parent.parent / "assets" / "themes" / "youtube_dark.json"
@@ -33,9 +33,15 @@ class YTDLPGUIApp:
     def __init__(self):
         init_logging()
         self.logger = get_logger(__name__)
+        self.logger.info("[STARTUP] building SettingsManager")
+        flush_logs()
 
         self.settings_manager = SettingsManager()
+        self.logger.info("[STARTUP] building DownloadManager")
+        flush_logs()
         self.download_manager = DownloadManager(self.settings_manager)
+        self.logger.info("[STARTUP] DownloadManager ready")
+        flush_logs()
 
         self.notification_manager = None
         self.error_handler = None
@@ -50,13 +56,21 @@ class YTDLPGUIApp:
         self.preview_container = None
 
         # Main window
+        self.logger.info("[STARTUP] creating CTk window")
+        flush_logs()
         self.root = ctk.CTk()
+        self.logger.info("[STARTUP] CTk window created")
+        flush_logs()
         self.root.title("yt-dlp GUI")
         self.root.geometry("1200x750")
         self.root.minsize(1000, 650)
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
+        self.logger.info("[STARTUP] setting up UI")
+        flush_logs()
         self.setup_ui()
+        self.logger.info("[STARTUP] UI ready")
+        flush_logs()
         self.setup_bindings()
 
         # Override CTk default icon (after window is fully initialized)
@@ -573,5 +587,7 @@ class YTDLPGUIApp:
 
     def run(self):
         """Start the application"""
+        self.logger.info("[STARTUP] entering mainloop")
+        flush_logs()
         self.logger.info("Starting GUI application")
         self.root.mainloop()

@@ -163,6 +163,20 @@ def get_logger(name: str) -> logging.Logger:
     """Get a logger with the specified name"""
     return get_log_manager().get_logger(name)
 
+
+def flush_logs():
+    """Flush all file log handlers to disk.
+
+    Used by startup checkpoint logging so that lines written just before a
+    hang are guaranteed to reach the log file.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.handlers.RotatingFileHandler):
+            try:
+                handler.flush()
+            except Exception:
+                pass
+
 def log_download_event(event_type: str, url: str, details: str = ""):
     """Log a download-specific event"""
     download_logger = get_log_manager().get_download_logger()

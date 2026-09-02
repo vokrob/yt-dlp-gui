@@ -10,6 +10,12 @@ import logging
 import threading
 from pathlib import Path
 
+# Set to True right before the GUI mainloop starts. The watchdog timer below
+# checks it so a hang during startup (e.g. stuck filesystem I/O or Tk init)
+# shows a native message box instead of a silent zombie process.
+STARTUP_COMPLETE = False
+STARTUP_TIMEOUT_S = 15
+
 def setup_paths():
     """Setup module paths and bundled binaries"""
     if getattr(sys, 'frozen', False):
@@ -36,6 +42,33 @@ except ImportError as e:
     print(f"Import error: {e}")
     sys.exit(1)
 
+def watchdog():
+    """Show a native message box if the GUI did not appear in time.
+
+    Uses Windows MessageBoxW (via ctypes) so it works even from a background
+    thread and without a Tk window - which is exactly the case it guards against.
+    """
+    global STARTUP_COMPLETE
+    if STARTUP_COMPLETE:
+        return
+    log_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'yt-dlp-gui', 'logs')
+    message = (
+        "The window did not appear after {} seconds.\n\n"
+        "The app may be stuck during startup (often a slow or redirected AppData folder, "
+        "OneDrive, network drive, or an antivirus).\n\n"
+        "Logs: {}\n\n"
+        "You can kill it from Task Manager."
+    ).format(STARTUP_TIMEOUT_S, log_dir)
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(
+            None, message, "yt-dlp GUI - startup problem",
+            0x10 | 0x1000  # MB_ICONERROR | MB_SYSTEMMODAL
+        )
+    except Exception:
+        pass
+
+
 def main():
     """Start the application"""
     try:
@@ -47,6 +80,9 @@ def main():
         from ytdlp_gui.main import _ensure_binaries
         if not _ensure_binaries():
             sys.exit(1)
+
+        global STARTUP_COMPLETE
+        threading.Timer(STARTUP_TIMEOUT_S, watchdog).start()
 
         app = YTDLPGUIApp()
 
@@ -61,6 +97,7 @@ def main():
 
         threading.Thread(target=_update_ytdlp, daemon=True).start()
 
+        STARTUP_COMPLETE = True
         app.run()
     except Exception as e:
         logging.error(f"App failed to start: {e}")

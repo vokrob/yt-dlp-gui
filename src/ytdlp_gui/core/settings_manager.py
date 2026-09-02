@@ -7,9 +7,32 @@ Date: 18.07.2025
 
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any
 import os
+
+
+def _write_json_with_timeout(path: Path, data: Dict[str, Any], timeout: float = 3.0) -> bool:
+    """Write JSON to disk in a worker thread with a hard timeout.
+
+    Same reasoning as DownloadManager.save_queue: a stuck/redirected filesystem
+    must never block the app (e.g. when saving settings on exit).
+    """
+    result = [False]
+
+    def _do_write():
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            result[0] = True
+        except Exception:
+            pass
+
+    thread = threading.Thread(target=_do_write, daemon=True)
+    thread.start()
+    thread.join(timeout)
+    return result[0]
 
 class SettingsManager:
     """Settings manager"""
@@ -74,14 +97,15 @@ class SettingsManager:
     def save_settings(self):
         """Save current settings to file"""
         try:
-            with open(self.settings_file, 'w', encoding='utf-8') as f:
-                json.dump(self.settings, f, indent=2, ensure_ascii=False)
-                
+            if not _write_json_with_timeout(self.settings_file, self.settings):
+                self.logger.warning("Settings save skipped (filesystem did not respond in time)")
+                return
+
             self.logger.info("Settings saved successfully")
-            
+
         except Exception as e:
             self.logger.error(f"Failed to save settings: {e}")
-            
+
     def get(self, key: str, default: Any = None) -> Any:
         """Get a setting value"""
         return self.settings.get(key, default)
