@@ -140,7 +140,9 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             quality_options = []
 
             for height in available_heights:
-                if height >= 2160:
+                if height >= 4320:
+                    quality_options.append("4320p (8K)")
+                elif height >= 2160:
                     quality_options.append("2160p (4K)")
                 elif height >= 1440:
                     quality_options.append("1440p (2K)")

@@ -169,7 +169,9 @@ class FormatDetector:
         
         # Resolution score
         height = fmt.get('height', 0) or 0
-        if height >= 2160:  # 4K
+        if height >= 4320:  # 8K
+            score += 1200
+        elif height >= 2160:  # 4K
             score += 1000
         elif height >= 1440:  # 1440p
             score += 800
