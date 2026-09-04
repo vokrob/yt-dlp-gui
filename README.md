@@ -3,13 +3,13 @@
   <sup>yt-dlp GUI</sup>
 </h1>
 
-<video src="https://github.com/user-attachments/assets/99dd7a70-c000-4da1-91b3-d60fafb155c7"></video>
+<video src="https://github.com/user-attachments/assets/f9489d07-ffb4-4aec-9a5b-c60e66b7c76d"></video>
 
 Paste a link, pick the quality, and download. No setup, everything updates itself
 
 ## Description
 
-Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
+Videos as MP4 (144p to 8K), audio as MP3, from YouTube and [hundreds of other sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md).
 
 - Queue that survives restarts
 - Cookies read automatically from installed browsers, so age-restricted videos just work
@@ -20,6 +20,8 @@ Videos as MP4 (144p to 4K), audio as MP3, from YouTube and [hundreds of other si
 - Python 3.9+
 - CustomTkinter
 - yt-dlp
+- requests
+- packaging
 - Pillow
 - PyInstaller
 
@@ -43,7 +45,7 @@ To build the exe: `pip install pyinstaller`, then `python build.py`.
 ## Usage
 
 1. Launch the app and paste a video URL
-2. Wait for the preview to load (title, duration, thumbnail, quality options)
+2. Wait for the preview to load (title, thumbnail, quality options)
 3. Choose Video or Audio, pick the quality and save location, press Start
 4. Watch progress in the queue
 
