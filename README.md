@@ -20,8 +20,6 @@ Videos as MP4 (144p to 8K), audio as MP3, from YouTube and [hundreds of other si
 - Python 3.9+
 - CustomTkinter
 - yt-dlp
-- requests
-- packaging
 - Pillow
 - PyInstaller
 
