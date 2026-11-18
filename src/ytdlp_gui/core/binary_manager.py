@@ -20,6 +20,7 @@ YTDLP_EXE_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dl
 YTDLP_NIGHTLY_URL = "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe"
 FFMPEG_ZIP_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
 FFMPEG_ZIP_BACKUP_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip"
+YTDLP_PENDING_NAME = "yt-dlp-pending.exe"
 
 
 def _download_file(url: str, dest: Path, timeout: int = 60) -> None:
@@ -66,6 +67,57 @@ def get_ffmpeg_location() -> Optional[str]:
     return str(ffmpeg.parent) if ffmpeg.exists() else None
 
 
+def _validate_ytdlp(path: Path) -> None:
+    """Raise if a downloaded yt-dlp binary is truncated or cannot run."""
+    size = path.stat().st_size
+    if size < 1_000_000:
+        raise RuntimeError(f"{path.name} is truncated ({size} bytes)")
+    if not _check_executable(path, version_flag='--version'):
+        raise RuntimeError(f"{path.name} does not run on this system")
+
+
+def _download_ytdlp(url: str, pending_path: Path) -> None:
+    """Download yt-dlp to a pending file and validate it before use."""
+    tmp_path = pending_path.with_name(pending_path.name + '.tmp')
+    try:
+        _download_file(url, tmp_path)
+        tmp_path.replace(pending_path)
+        _validate_ytdlp(pending_path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        pending_path.unlink(missing_ok=True)
+        raise
+
+
+def apply_pending_update() -> bool:
+    """Apply yt-dlp-pending.exe if present.
+
+    Runs on startup before any yt-dlp process is launched, so replacing the
+    executable is safe. If the file is still in use, it is kept for the next
+    launch.
+    """
+    bin_dir = get_bin_dir()
+    exe = bin_dir / 'yt-dlp.exe'
+    pending = bin_dir / YTDLP_PENDING_NAME
+    if not pending.exists():
+        return False
+
+    try:
+        _validate_ytdlp(pending)
+    except Exception as e:
+        logger.warning("Discarding invalid pending yt-dlp update: %s", e)
+        pending.unlink(missing_ok=True)
+        return False
+
+    try:
+        os.replace(pending, exe)
+        logger.info("Applied pending yt-dlp update")
+        return True
+    except OSError as e:
+        logger.warning("Pending yt-dlp update cannot be applied yet: %s", e)
+        return False
+
+
 def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> bool:
     bin_dir = get_bin_dir()
     ytdlp_path = bin_dir / 'yt-dlp.exe'
@@ -76,6 +128,8 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
         if progress_callback:
             progress_callback(msg, pct)
         logger.info("[binaries] %s", msg)
+
+    apply_pending_update()
 
     if not ytdlp_path.exists():
         report("Downloading yt-dlp.exe...", 0)
@@ -150,42 +204,42 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
     return True
 
 
-def update_ytdlp() -> None:
-    """Download the latest yt-dlp binary from GitHub (nightly first, then stable)."""
+def update_ytdlp(is_busy: Optional[Callable[[], bool]] = None) -> None:
+    """Download the latest yt-dlp binary and apply it safely.
+
+    Updates are skipped while downloads are active. If the running exe cannot
+    be replaced, the new binary is kept as yt-dlp-pending.exe and applied on
+    the next startup.
+    """
     try:
-        exe = get_bin_dir() / 'yt-dlp.exe'
+        if is_busy and is_busy():
+            logger.info("Skipping yt-dlp update: downloads are active")
+            return
+
+        bin_dir = get_bin_dir()
+        exe = bin_dir / 'yt-dlp.exe'
         if not exe.exists():
             return
 
-        tmp = exe.with_suffix('.exe.tmp')
+        pending = bin_dir / YTDLP_PENDING_NAME
+        pending.with_name(pending.name + '.tmp').unlink(missing_ok=True)
+
         downloaded = None
-
-        # 1. Try nightly builds (yt-dlp/yt-dlp-nightly-builds)
-        logger.info("Downloading latest yt-dlp nightly build...")
-        try:
-            _download_file(YTDLP_NIGHTLY_URL, tmp)
-            tmp.replace(exe)
-            downloaded = "nightly"
-            logger.info("yt-dlp updated to latest nightly build")
-        except Exception as e:
-            logger.warning("Nightly download failed: %s", e)
-            tmp.unlink(missing_ok=True)
-
-        # 2. Fallback to stable (yt-dlp/yt-dlp)
-        if not downloaded:
-            logger.info("Downloading latest yt-dlp stable build...")
+        for source, url in (("nightly", YTDLP_NIGHTLY_URL), ("stable", YTDLP_EXE_URL)):
+            logger.info("Downloading latest yt-dlp %s build...", source)
             try:
-                _download_file(YTDLP_EXE_URL, tmp)
-                tmp.replace(exe)
-                downloaded = "stable"
-                logger.info("yt-dlp updated to latest stable build")
+                _download_ytdlp(url, pending)
+                downloaded = source
+                logger.info("yt-dlp %s build downloaded and verified", source)
+                break
             except Exception as e:
-                logger.warning("Stable download failed: %s", e)
-                tmp.unlink(missing_ok=True)
+                logger.warning("%s yt-dlp download failed: %s", source, e)
 
-        # 3. Last resort: built-in --update
         if not downloaded:
             logger.info("Trying yt-dlp --update...")
+            if is_busy and is_busy():
+                logger.info("Skipping yt-dlp --update: downloads are active")
+                return
             flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
             result = subprocess.run(
                 [str(exe), '--update'],
@@ -195,16 +249,18 @@ def update_ytdlp() -> None:
             if result.returncode == 0:
                 msg = result.stdout.strip() or result.stderr.strip() or "updated"
                 logger.info("yt-dlp auto-update: %s", msg)
-                downloaded = "update"
             else:
                 logger.warning("yt-dlp --update failed: %s", result.stderr.strip()[:200])
-
-        if not downloaded:
-            logger.warning("All yt-dlp update methods failed")
             return
 
+        # A download may have started while the update was downloading.
+        if is_busy and is_busy():
+            logger.info("yt-dlp update saved as %s and will be applied on next launch", pending.name)
+        else:
+            apply_pending_update()
+
         # Clean up ffmpeg zip if present
-        zip_path = get_bin_dir() / 'ffmpeg.zip'
+        zip_path = bin_dir / 'ffmpeg.zip'
         if zip_path.exists():
             zip_path.unlink()
 

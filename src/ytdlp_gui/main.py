@@ -42,6 +42,7 @@ def _ensure_binaries():
     try:
         from .core import binary_manager
         bin_dir = binary_manager.get_bin_dir()
+        binary_manager.apply_pending_update()
         ytdlp_ok = (bin_dir / 'yt-dlp.exe').exists()
         ffmpeg_ok = (bin_dir / 'ffmpeg.exe').exists() and (bin_dir / 'ffprobe.exe').exists()
 
@@ -111,10 +112,23 @@ def main():
 
         # Auto-update yt-dlp in the background so a slow or blocked GitHub
         # doesn't leave the process running with no visible window at startup.
+        def _has_active_downloads():
+            try:
+                from .core.download_manager import DownloadStatus
+                manager = app.download_manager
+                if manager.active_downloads:
+                    return True
+                return any(
+                    item.status in (DownloadStatus.PENDING, DownloadStatus.DOWNLOADING)
+                    for item in manager.get_queue()
+                )
+            except Exception:
+                return False
+
         def _update_ytdlp():
             try:
                 from .core import binary_manager
-                binary_manager.update_ytdlp()
+                binary_manager.update_ytdlp(is_busy=_has_active_downloads)
             except Exception:
                 pass
 
