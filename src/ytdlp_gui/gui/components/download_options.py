@@ -15,11 +15,13 @@ from tkinter import filedialog
 class DownloadOptionsFrame(ctk.CTkFrame):
     """Frame for download options - format and quality (saves to Desktop by default)"""
 
-    def __init__(self, parent, settings_manager, on_download_click: Optional[Callable] = None):
+    def __init__(self, parent, settings_manager, on_download_click: Optional[Callable] = None,
+                 on_loading_changed: Optional[Callable[[bool], None]] = None):
         super().__init__(parent, fg_color="transparent")
         self.logger = logging.getLogger(__name__)
         self.settings_manager = settings_manager
         self.on_download_click = on_download_click
+        self.on_loading_changed = on_loading_changed
 
         # Format detection
         self.format_detector = FormatDetector(settings_manager)
@@ -27,6 +29,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
         self.current_url = None
         self.best_quality = None
         self._output_path = None
+        self.qualities_loading = False
 
         self.setup_ui()
         
@@ -102,16 +105,27 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             self.path_entry.delete(0, "end")
             self.path_entry.insert(0, selected)
 
+    def _set_qualities_loading(self, loading: bool):
+        """Update the loading state and notify the parent window."""
+        self.qualities_loading = loading
+        if self.on_loading_changed:
+            try:
+                self.on_loading_changed(loading)
+            except Exception as e:
+                self.logger.error(f"Loading state callback failed: {e}")
+
     def load_video_qualities(self, url: str):
         """Load available qualities for the video URL"""
         if url == self.current_url and self.available_qualities:
             self.logger.info(f"Using cached qualities for URL: {url}")
+            self._set_qualities_loading(True)
             self.after(0, self._update_quality_dropdown)
             return
 
         self.current_url = url
         self.quality_var.set("Loading...")
         self.quality_dropdown.configure(values=["Loading..."])
+        self._set_qualities_loading(True)
 
         # Load qualities in background thread
         threading.Thread(target=self._fetch_video_qualities, args=(url,), daemon=True).start()
@@ -190,6 +204,7 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             # Fallback
             self.quality_dropdown.configure(values=["720p", "480p", "360p"])
             self.quality_var.set("720p")
+        self._set_qualities_loading(False)
 
     def on_format_change(self, value):
         """Handle format change"""
@@ -211,8 +226,15 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             
     def start_download(self):
         """Start download with current options"""
+        if self.format_var.get() == "Video" and self.qualities_loading:
+            self.logger.warning("Start ignored: video formats are still loading")
+            return
+
         if self.on_download_click:
             format_info = self.get_format_info()
+            if not format_info:
+                self.logger.warning("Start ignored: format info is not ready")
+                return
 
             output_path = self._output_path or self.settings_manager.get_output_directory()
 
@@ -231,6 +253,9 @@ class DownloadOptionsFrame(ctk.CTkFrame):
             self.logger.info(f"Audio format selected: {format_info['format_id']}")
         else:
             quality = format_info['quality']
+            if not quality or quality == "Loading...":
+                self.logger.warning("Video quality is not ready yet")
+                return {}
             self.logger.info(f"Video quality selected: {quality}")
 
             # Selectors based on bestvideo+bestaudio

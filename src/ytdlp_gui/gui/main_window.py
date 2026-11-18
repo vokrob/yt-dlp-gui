@@ -216,7 +216,8 @@ class YTDLPGUIApp:
         self.download_options_frame = DownloadOptionsFrame(
             self.main_frame,
             settings_manager=self.settings_manager,
-            on_download_click=self.on_options_download_click
+            on_download_click=self.on_options_download_click,
+            on_loading_changed=self._on_formats_loading_changed
         )
 
         self.fixed_buttons_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -348,6 +349,9 @@ class YTDLPGUIApp:
         # Show buttons frame - clean bottom placement
         self.fixed_buttons_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=(10, 20))
 
+        # Start stays disabled until the quality list is ready
+        self.start_button.configure(state="disabled")
+
         # Force update and refresh
         self.main_frame.update_idletasks()
 
@@ -412,6 +416,11 @@ class YTDLPGUIApp:
         """Handle video info loaded - load formats sequentially"""
         self.logger.info(f"Video info loaded, now loading formats for: {url}")
         self.download_options_frame.load_video_qualities(url)
+
+    def _on_formats_loading_changed(self, loading: bool):
+        """Enable Start only when the quality list is ready."""
+        if hasattr(self, 'start_button'):
+            self.start_button.configure(state="disabled" if loading else "normal")
 
     def on_options_download_click(self, format_info: dict, output_path: str):
         """Handle download click from options"""
