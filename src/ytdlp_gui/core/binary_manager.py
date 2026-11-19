@@ -113,8 +113,8 @@ def apply_pending_update() -> bool:
         os.replace(pending, exe)
         logger.info("Applied pending yt-dlp update")
         return True
-    except OSError as e:
-        logger.warning("Pending yt-dlp update cannot be applied yet: %s", e)
+    except OSError:
+        logger.info("Pending yt-dlp update is locked; will retry on next launch")
         return False
 
 
@@ -205,11 +205,11 @@ def ensure_binaries(progress_callback: Callable[[str, int], None] = None) -> boo
 
 
 def update_ytdlp(is_busy: Optional[Callable[[], bool]] = None) -> None:
-    """Download the latest yt-dlp binary and apply it safely.
+    """Download the latest yt-dlp binary for the next launch.
 
-    Updates are skipped while downloads are active. If the running exe cannot
-    be replaced, the new binary is kept as yt-dlp-pending.exe and applied on
-    the next startup.
+    Updates are skipped while downloads are active. The new binary is kept as
+    yt-dlp-pending.exe and applied on the next startup, before any yt-dlp
+    process runs.
     """
     try:
         if is_busy and is_busy():
@@ -236,28 +236,10 @@ def update_ytdlp(is_busy: Optional[Callable[[], bool]] = None) -> None:
                 logger.warning("%s yt-dlp download failed: %s", source, e)
 
         if not downloaded:
-            logger.info("Trying yt-dlp --update...")
-            if is_busy and is_busy():
-                logger.info("Skipping yt-dlp --update: downloads are active")
-                return
-            flags = subprocess.CREATE_NO_WINDOW if platform.system() == 'Windows' else 0
-            result = subprocess.run(
-                [str(exe), '--update'],
-                capture_output=True, text=True, timeout=60,
-                creationflags=flags
-            )
-            if result.returncode == 0:
-                msg = result.stdout.strip() or result.stderr.strip() or "updated"
-                logger.info("yt-dlp auto-update: %s", msg)
-            else:
-                logger.warning("yt-dlp --update failed: %s", result.stderr.strip()[:200])
+            logger.warning("All yt-dlp update downloads failed")
             return
 
-        # A download may have started while the update was downloading.
-        if is_busy and is_busy():
-            logger.info("yt-dlp update saved as %s and will be applied on next launch", pending.name)
-        else:
-            apply_pending_update()
+        logger.info("yt-dlp update saved as %s and will be applied on next launch", pending.name)
 
         # Clean up ffmpeg zip if present
         zip_path = bin_dir / 'ffmpeg.zip'
