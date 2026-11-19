@@ -46,7 +46,6 @@ class SettingsManager:
         'cookies_browser': 'chrome',  # Default browser for cookie extraction
         'cookies_fallback_browsers': ['chrome', 'firefox', 'edge', 'safari'],
         'notification_enabled': True,
-        'last_update_check_time': 0.0,  # Timestamp of last update check
         'latest_update_info': '',  # Cached update info JSON string
     }
     

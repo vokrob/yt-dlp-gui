@@ -19,9 +19,6 @@ GITHUB_REPO = "vokrob/yt-dlp-gui"
 GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 
-CACHE_TTL = 6 * 3600  # 6 hours between update checks
-
-
 class UpdateChecker:
     """Check for updates and apply them"""
 
@@ -42,19 +39,14 @@ class UpdateChecker:
     def _load_cache(self) -> Optional[Dict]:
         """Load cached update info from settings.
 
-        The cache is only trusted if it was produced by the current build.
-        A stale cache from an older version (that found an update) must be
+        The cache is used for conditional requests and as an offline fallback,
+        so it is not gated by age. A cache produced by an older build must be
         discarded, otherwise the "Update" button keeps showing forever after
         a successful self-update.
         """
         if not self._settings:
             return None
         try:
-            last_check = self._settings.get('last_update_check_time', 0.0)
-            elapsed = __import__('time').time() - last_check
-            if elapsed >= CACHE_TTL:
-                return None
-
             cached = self._settings.get('latest_update_info', '')
             if not cached:
                 return None
@@ -73,29 +65,44 @@ class UpdateChecker:
         return None
 
     def _save_cache(self, info: dict):
-        """Save update info to settings cache"""
+        """Save update info to settings cache and persist it immediately."""
         if not self._settings:
             return
         try:
-            import time
-            self._settings.set('last_update_check_time', time.time())
             self._settings.set('latest_update_info', json.dumps(info))
+            self._settings.save_settings()
         except Exception as e:
             self.logger.warning(f"Failed to save update cache: {e}")
 
     def check(self) -> Optional[Dict]:
-        """Check GitHub for latest release. Uses cached result if fresh."""
+        """Check GitHub for the latest release.
+
+        The cached result is revalidated with ETag on every call, so a release
+        published after the previous check is detected without waiting for a
+        cache TTL. If the network or API rate limit blocks the request, the
+        cached result is returned instead.
+        """
         cached = self._load_cache()
-        if cached is not None:
-            self.logger.info("Using cached update check result")
-            return cached
+
+        headers = {"Accept": "application/json"}
+        if cached and cached.get("etag"):
+            headers["If-None-Match"] = cached["etag"]
 
         try:
             resp = requests.get(
                 GITHUB_API,
                 timeout=10,
-                headers={"Accept": "application/json"}
+                headers=headers
             )
+
+            if resp.status_code == 304:
+                if cached is not None:
+                    self.logger.info("Update check: release unchanged (304)")
+                    self._save_cache(cached)
+                    return cached
+                self.logger.warning("Update check returned 304 without cached data")
+                return None
+
             resp.raise_for_status()
             data = resp.json()
 
@@ -114,6 +121,10 @@ class UpdateChecker:
                 "release_url": data.get("html_url", ""),
             }
 
+            etag = resp.headers.get("ETag")
+            if etag:
+                result["etag"] = etag
+
             if self._current_version and latest_version > self._current_version:
                 asset_url = self._find_asset(data)
                 if not asset_url:
@@ -128,6 +139,11 @@ class UpdateChecker:
             return result
 
         except requests.RequestException as e:
+            if cached is not None:
+                self.logger.warning(
+                    f"Update check failed, using cached result: {e}"
+                )
+                return cached
             self.logger.warning(f"Failed to check for updates: {e}")
             return None
         except (KeyError, json.JSONDecodeError) as e:
