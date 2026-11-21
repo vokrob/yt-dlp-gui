@@ -143,6 +143,7 @@ debug_*
 *.webm
 *.m4a
 *.mp3
+!assets/demo.mp4
 
 # Logs
 logs/
