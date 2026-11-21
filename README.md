@@ -3,7 +3,7 @@
   <sup>yt-dlp GUI</sup>
 </h1>
 
-<video src="https://github.com/user-attachments/assets/f00aacf5-8b27-46c9-87ad-2008678f953e"></video>
+<video src="https://github.com/user-attachments/assets/4dbaf521-035c-4792-8689-4e1c6430e6fd"></video>
 
 Paste a link, pick the quality, and download. No setup, everything updates itself
 
