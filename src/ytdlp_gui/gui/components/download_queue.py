@@ -44,7 +44,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
             text="Downloads",
             font=ctk.CTkFont(size=16, weight="bold")
         )
-        title_label.grid(row=0, column=0, pady=(15, 20))
+        title_label.grid(row=0, column=0, pady=(15, 10))
 
         # Canvas + scrollbar for queue items (scrollbar shows only when needed)
         scroll_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -54,7 +54,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
 
         self.canvas = tk.Canvas(
             scroll_container,
-            bg="#1A1A1A",
+            bg=self._apply_appearance_mode(self._fg_color),
             highlightthickness=0,
             bd=0
         )
@@ -64,7 +64,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
         # Inner frame (actual content container)
-        self.scrollable_frame = ctk.CTkFrame(self.canvas, corner_radius=8)
+        self.scrollable_frame = ctk.CTkFrame(self.canvas, fg_color="transparent", corner_radius=0)
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
         self.canvas_window = self.canvas.create_window(
             (0, 0), window=self.scrollable_frame, anchor="nw"
@@ -178,7 +178,7 @@ class DownloadQueueFrame(ctk.CTkFrame):
     def create_queue_item(self, download_item: DownloadItem, row: int):
         """Create a download item that looks like Current Download"""
         # Main item frame (same style as ProgressDisplayFrame)
-        item_frame = ctk.CTkFrame(self.scrollable_frame)
+        item_frame = ctk.CTkFrame(self.scrollable_frame, fg_color=("gray86", "gray14"))
         item_frame.grid(row=row, column=0, sticky="ew", pady=5)
         item_frame.grid_columnconfigure(1, weight=1)
 
