@@ -10,7 +10,10 @@ import tkinter as tk
 import threading
 import logging
 import re
+import sys
+from pathlib import Path
 from typing import Optional, Callable
+from PIL import Image
 
 class SimpleURLInputFrame(ctk.CTkFrame):
     """URL input frame"""
@@ -34,12 +37,17 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         content_frame.grid(row=1, column=0, padx=50, pady=50)
         content_frame.grid_columnconfigure(0, weight=1)
 
+        self.logo_image = self._load_logo_image()
+        if self.logo_image:
+            logo_label = ctk.CTkLabel(content_frame, image=self.logo_image, text="")
+            logo_label.grid(row=0, column=0, pady=(40, 10))
+
         title_label = ctk.CTkLabel(
             content_frame,
             text="yt-dlp GUI",
             font=ctk.CTkFont(size=32, weight="bold")
         )
-        title_label.grid(row=0, column=0, padx=40, pady=(40, 20))
+        title_label.grid(row=1, column=0, padx=40, pady=(0, 20))
 
         input_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
         input_frame.grid(row=2, column=0, sticky="ew", padx=40, pady=(0, 20))
@@ -87,7 +95,25 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         
         # Focus on URL entry
         self.after(100, lambda: self.url_entry.focus())
-        
+
+    def _load_logo_image(self):
+        """Load the app logo shown above the title."""
+        try:
+            if getattr(sys, "frozen", False):
+                logo_path = Path(sys._MEIPASS) / "assets" / "logo.png"
+            else:
+                logo_path = Path(__file__).resolve().parents[4] / "assets" / "logo.png"
+
+            if not logo_path.exists():
+                self.logger.warning(f"Logo not found: {logo_path}")
+                return None
+
+            image = Image.open(logo_path)
+            return ctk.CTkImage(light_image=image, dark_image=image, size=(96, 96))
+        except Exception as e:
+            self.logger.warning(f"Failed to load logo: {e}")
+            return None
+
     def on_url_entry_change(self, event=None):
         """Handle URL entry changes"""
         url = self.url_entry.get().strip()
