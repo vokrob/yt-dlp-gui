@@ -6,6 +6,7 @@ Date: 18.07.2025
 """
 
 import customtkinter as ctk
+import tkinter as tk
 import threading
 import logging
 import requests
@@ -56,17 +57,34 @@ class VideoPreviewFrame(ctk.CTkFrame):
         loading_content = ctk.CTkFrame(self.loading_frame, fg_color="transparent")
         loading_content.grid(row=0, column=0)
 
-        # Loading spinner - clean and modern
-        self.loading_label = ctk.CTkLabel(
+        # Loading spinner - standard circular indicator
+        self.spinner_canvas = tk.Canvas(
             loading_content,
-            text="|",
-            font=ctk.CTkFont(size=32, weight="bold"),
-            text_color=("gray60", "gray40")
+            width=44,
+            height=44,
+            bg=self._apply_appearance_mode(self.loading_frame._fg_color),
+            highlightthickness=0,
+            bd=0
         )
-        self.loading_label.grid(row=0, column=0, pady=30)
+        self.spinner_canvas.grid(row=0, column=0, pady=30)
+
+        self.spinner_canvas.create_oval(
+            6, 6, 38, 38,
+            outline="#3A3A3A",
+            width=3
+        )
+        self.spinner_arc = self.spinner_canvas.create_arc(
+            6, 6, 38, 38,
+            start=0,
+            extent=90,
+            style="arc",
+            outline="#DCE4EE",
+            width=3
+        )
 
         # Animation state
-        self.animation_state = 0
+        self.spinner_angle = 0
+        self._spinner_job = None
 
         # Content frame - shown after loading
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -115,51 +133,33 @@ class VideoPreviewFrame(ctk.CTkFrame):
     def start_loading_animation(self):
         """Start loading animation"""
         self.loading_complete = False
-        self.animation_state = 0
-        self.animation_cycle = 0  # Track animation cycles for subtle effects
+        self._stop_spinner_animation()
+        self.spinner_angle = 0
+        self.spinner_canvas.itemconfigure(self.spinner_arc, start=self.spinner_angle)
         self.loading_frame.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
         self.content_frame.grid_remove()
         self._animate_loading()
 
     def _animate_loading(self):
-        """Animate loading spinner with smooth effects"""
-        if not self.loading_complete:
-            # Smooth loading animation
-            loading_states = [
-                "|",
-                "/",
-                "-",
-                "\\",
-                "|",
-                "/",
-                "-",
-                "\\"
-            ]
+        """Rotate the loading spinner"""
+        if self.loading_complete:
+            self._spinner_job = None
+            return
 
-            # Subtle color cycling for visual appeal
-            colors = [
-                ("gray60", "gray40"),
-                ("gray65", "gray45"),
-                ("gray70", "gray50"),
-                ("gray65", "gray45")
-            ]
+        self.spinner_angle = (self.spinner_angle - 12) % 360
+        self.spinner_canvas.itemconfigure(self.spinner_arc, start=self.spinner_angle)
+        self._spinner_job = self.after(40, self._animate_loading)
 
-            color_index = (self.animation_cycle // 4) % len(colors)
-
-            self.loading_label.configure(
-                text=loading_states[self.animation_state],
-                text_color=colors[color_index]
-            )
-
-            self.animation_state = (self.animation_state + 1) % len(loading_states)
-            self.animation_cycle += 1
-
-            # Continue animation every 120ms for very smooth animation
-            self.after(120, self._animate_loading)
+    def _stop_spinner_animation(self):
+        """Cancel the pending spinner animation tick"""
+        if self._spinner_job is not None:
+            self.after_cancel(self._spinner_job)
+            self._spinner_job = None
 
     def show_content(self):
         """Show content and hide loading"""
         self.loading_complete = True
+        self._stop_spinner_animation()
         self.loading_frame.grid_remove()
         self.content_frame.grid(row=0, column=0, sticky="nsew")
 
