@@ -144,9 +144,15 @@ class SimpleURLInputFrame(ctk.CTkFrame):
         self.after(0, update)
         
     def _on_key_press(self, event):
-        """Catch Ctrl+V by physical keycode (same on all keyboard layouts)"""
-        if event.keycode == 86 and (event.state & 0x4):  # Physical V key + Ctrl
-            return self.on_paste()  # Manual paste - works on any layout
+        """Handle Ctrl shortcuts by physical keycode (same on all keyboard layouts)"""
+        if not (event.state & 0x4):
+            return None
+        if event.keycode == 65:  # Physical A key + Ctrl
+            self.url_entry.select_range(0, "end")
+            self.url_entry.icursor("end")
+            return "break"
+        if event.keycode == 86:  # Physical V key + Ctrl
+            return self.on_paste()
         return None
 
     def submit_url(self):
